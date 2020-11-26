@@ -1,9 +1,11 @@
-package main
+package domains
 
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"files-back/dbase"
+	"files-back/handlers"
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"log"
@@ -12,6 +14,7 @@ import (
 
 type Domain struct {
 	Name         string  `db:"name"`
+	OldName      *string `db:"old_name"`
 	Organisation string  `db:"organisation"`
 	PrimaryURL   string  `db:"primary_url"`
 	AdminURL     string  `db:"admin_url"`
@@ -35,7 +38,7 @@ type DomainJSON struct {
 	Description  *string `json:"description"`
 }
 
-type NewDomainJSON struct {
+type inDomainJSON struct {
 	Name         string `json:"name" validate:"required,alphanum,min=2,max=15,lowercase"`
 	Organisation string `json:"organisation" validate:"required"`
 	PrimaryURL   string `json:"primaryUrl" validate:"required"`
@@ -47,7 +50,9 @@ type NewDomainJSON struct {
 	Description  string `json:"description" validate:"required"`
 }
 
-func queryDomains(params QueryParams) ([]*DomainJSON, error) {
+var validate *validator.Validate
+
+func queryDomains(params handlers.QueryParams) ([]*DomainJSON, error) {
 	var resultDomains []*DomainJSON
 	var rows *sqlx.Rows
 	var err error
@@ -66,7 +71,7 @@ func queryDomains(params QueryParams) ([]*DomainJSON, error) {
 			LIMIT :limit
 			OFFSET :offset`
 	}
-	rows, err = Db.NamedQuery(sqlQuery, params)
+	rows, err = dbase.DB.NamedQuery(sqlQuery, params)
 	if err != nil {
 		return resultDomains, err
 	}
@@ -81,7 +86,7 @@ func queryDomains(params QueryParams) ([]*DomainJSON, error) {
 		if err != nil {
 			return resultDomains, err
 		}
-		domainResponse := convertDomainsDBToJSON(&resultDomain)
+		domainResponse := resultDomain.toJSON()
 		resultDomains = append(resultDomains, domainResponse)
 	}
 	return resultDomains, nil
@@ -90,15 +95,23 @@ func queryDomains(params QueryParams) ([]*DomainJSON, error) {
 func queryDomain(domainName string) (*DomainJSON, error) {
 	var resultDomain *DomainJSON
 	var DBDomain Domain
-	err := Db.QueryRowx("SELECT name, organisation, primary_url, admin_url, data_path, user_name, type FROM domains WHERE name=$1", domainName).StructScan(&DBDomain)
+	err := dbase.DB.QueryRowx("SELECT name, organisation, primary_url, admin_url, data_path, user_name, type FROM domains WHERE name=$1", domainName).StructScan(&DBDomain)
 	if err != nil {
 		return resultDomain, err
 	}
-	resultDomain = convertDomainsDBToJSON(&DBDomain)
+	resultDomain = DBDomain.toJSON()
 	return resultDomain, nil
 }
 
-func convertDomainsDBToJSON(dbDomain *Domain) *DomainJSON {
+func deleteDomainDB(domainName string) error {
+	_, err := dbase.DB.Exec("DELETE FROM domains WHERE name=$1", domainName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (dbDomain *Domain) toJSON() *DomainJSON {
 	unknown := "unknown"
 	domainResponse := DomainJSON{
 		Name:         &dbDomain.Name,
@@ -123,58 +136,49 @@ func convertDomainsDBToJSON(dbDomain *Domain) *DomainJSON {
 	return &domainResponse
 }
 
-func getDomains(w http.ResponseWriter, r *http.Request) {
-	domains, err := queryDomains(getQueryParams(r.URL))
+func GetAll(w http.ResponseWriter, r *http.Request) {
+	domains, err := queryDomains(handlers.GetQueryParams(r.URL))
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			statusDBNotFound(err, w)
+			handlers.StatusDBNotFound(err, w)
 			return
 		default:
-			statusDBError(err, w)
+			handlers.StatusDBError(err, w)
 			return
 		}
 	}
-	responseJSON(w, err, domains)
+	handlers.ResponseJSON(w, err, domains)
 }
 
-func responseJSON(w http.ResponseWriter, err error, domains interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(domains)
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func getDomain(w http.ResponseWriter, r *http.Request) {
-	responseDomain, err := queryDomain(mux.Vars(r)["domainName"])
+func GetOne(w http.ResponseWriter, r *http.Request) {
+	responseDomain, err := queryDomain(extractDomainName(r))
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			statusDBNotFound(err, w)
+			handlers.StatusDBNotFound(err, w)
 			return
 		default:
-			statusDBError(err, w)
+			handlers.StatusDBError(err, w)
 			return
 		}
 	}
-	responseJSON(w, err, responseDomain)
+	handlers.ResponseJSON(w, err, responseDomain)
 }
 
-func createDomain(w http.ResponseWriter, r *http.Request) {
+func Create(w http.ResponseWriter, r *http.Request) {
 	newDomain, err := extractDomain(r)
 	if err != nil {
-		statusBadData(err, w)
+		handlers.StatusBadData(err, w)
 	}
-	err = insertNewDomain(convertNewDomainsJSONToDB(newDomain))
+	err = insertDomainToDB(newDomain.toDB())
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			statusDBNotFound(err, w)
+			handlers.StatusDBNotFound(err, w)
 			return
 		default:
-			statusDBError(err, w)
+			handlers.StatusDBError(err, w)
 			return
 		}
 	}
@@ -182,17 +186,17 @@ func createDomain(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			statusDBNotFound(err, w)
+			handlers.StatusDBNotFound(err, w)
 			return
 		default:
-			statusDBError(err, w)
+			handlers.StatusDBError(err, w)
 			return
 		}
 	}
-	responseJSON(w, err, responseDomain)
+	handlers.ResponseJSON(w, err, responseDomain)
 }
 
-func convertNewDomainsJSONToDB(NewDomain *NewDomainJSON) *Domain {
+func (NewDomain *inDomainJSON) toDB() *Domain {
 	domainResponse := Domain{
 		Password:     NewDomain.Password,
 		Description:  &NewDomain.Description,
@@ -207,26 +211,50 @@ func convertNewDomainsJSONToDB(NewDomain *NewDomainJSON) *Domain {
 	return &domainResponse
 }
 
-func insertNewDomain(domain *Domain) error {
-	result, err := Db.NamedExec(`
+func insertDomainToDB(domain *Domain) error {
+	_, err := dbase.DB.NamedExec(`
 			INSERT INTO domains
 				(name, organisation, admin_url, primary_url, data_path, password, user_name, type, description)
 			VALUES
 			    (:name, :organisation, :admin_url, :primary_url, :data_path, :password, :user_name, :type, :description)`,
 		domain)
-	fmt.Println(result)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func extractDomain(r *http.Request) (*NewDomainJSON, error) {
-	var NewDomain NewDomainJSON
+func updateDomainDB(domain *Domain, domainName string) error {
+	domain.OldName = &domainName
+	_, err := dbase.DB.NamedExec(`
+			UPDATE domains
+			SET 
+			    name = :name,
+			    organisation = :organisation,
+			    admin_url = :admin_url,
+			    primary_url = :primary_url,
+			    data_path = :data_path,
+			    password = :password,
+			    user_name = :user_name,
+			    type = :type,
+			    description = :description
+			WHERE
+				name = :old_name
+			    `,
+		domain)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func extractDomain(r *http.Request) (*inDomainJSON, error) {
+	var NewDomain inDomainJSON
 	err := json.NewDecoder(r.Body).Decode(&NewDomain)
 	if err != nil {
 		return nil, err
 	}
+	validate = validator.New()
 	err = validate.Struct(&NewDomain)
 	if err != nil {
 		return nil, err
@@ -234,10 +262,54 @@ func extractDomain(r *http.Request) (*NewDomainJSON, error) {
 	return &NewDomain, nil
 }
 
-func updateDomain(w http.ResponseWriter, r *http.Request) {
-
+func Update(w http.ResponseWriter, r *http.Request) {
+	newDomain, err := extractDomain(r)
+	if err != nil {
+		handlers.StatusBadData(err, w)
+	}
+	err = updateDomainDB(newDomain.toDB(), extractDomainName(r))
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			handlers.StatusDBNotFound(err, w)
+			return
+		default:
+			handlers.StatusDBError(err, w)
+			return
+		}
+	}
+	responseDomain, err := queryDomain(newDomain.Name)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			handlers.StatusDBNotFound(err, w)
+			return
+		default:
+			handlers.StatusDBError(err, w)
+			return
+		}
+	}
+	handlers.ResponseJSON(w, err, responseDomain)
 }
 
-func deleteDomain(w http.ResponseWriter, r *http.Request) {
+func extractDomainName(r *http.Request) string {
+	return mux.Vars(r)["domainName"]
+}
 
+func Delete(w http.ResponseWriter, r *http.Request) {
+	err := deleteDomainDB(extractDomainName(r))
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			handlers.StatusDBNotFound(err, w)
+			return
+		default:
+			handlers.StatusDBError(err, w)
+			return
+		}
+	}
+	handlers.ResponseJSON(w, err, handlers.Status{
+		Code:    200,
+		Message: "Deleted",
+	})
 }

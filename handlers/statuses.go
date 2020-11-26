@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ type Status struct {
 	Message string
 }
 
-func statusDBError(err error, w http.ResponseWriter) {
+func StatusDBError(err error, w http.ResponseWriter) {
 	log.Println(err)
 	w.WriteHeader(http.StatusBadRequest)
 	err = json.NewEncoder(w).Encode(
@@ -23,7 +23,7 @@ func statusDBError(err error, w http.ResponseWriter) {
 		log.Println(err)
 	}
 }
-func statusDBNotFound(err error, w http.ResponseWriter) {
+func StatusDBNotFound(err error, w http.ResponseWriter) {
 	log.Println(err)
 	w.WriteHeader(http.StatusNotFound)
 	err = json.NewEncoder(w).Encode(
@@ -36,7 +36,7 @@ func statusDBNotFound(err error, w http.ResponseWriter) {
 	}
 }
 
-func statusBadData(err error, w http.ResponseWriter) {
+func StatusBadData(err error, w http.ResponseWriter) {
 	log.Println(err)
 	err = json.NewEncoder(w).Encode(Status{
 		Code:    http.StatusBadRequest,

@@ -5,39 +5,29 @@ import (
 	"files-back/handlers"
 	"github.com/jmoiron/sqlx"
 	"log"
+	"time"
 )
 
 type DBStruct struct {
-	Name         string  `db:"name"`
-	OldName      *string `db:"old_name"`
-	Organisation string  `db:"organisation"`
-	PrimaryURL   string  `db:"primary_url"`
-	AdminURL     string  `db:"admin_url"`
-	DataPath     string  `db:"data_path"`
-	Password     string  `db:"password"`
-	UserName     string  `db:"user_name"`
-	Version      *string `db:"version"`
-	Type         string  `db:"type"`
-	Description  *string `db:"description"`
+	Name        string     `db:"name"`
+	OldName     *string    `db:"old_name"`
+	DomainName  string     `db:"domain_name"`
+	FromDate    time.Time  `db:"from_date"`
+	DueDate     *time.Time `db:"due_date"`
+	Type        string     `db:"type"`
+	Description *string    `db:"description"`
 }
 
 func (dbDomain *DBStruct) toJSON() *JSONStruct {
 	unknown := "unknown"
 	domainResponse := JSONStruct{
-		Name:         &dbDomain.Name,
-		Organisation: &dbDomain.Organisation,
-		PrimaryURL:   &dbDomain.PrimaryURL,
-		AdminURL:     &dbDomain.AdminURL,
-		DataPath:     &dbDomain.DataPath,
-		UserName:     &dbDomain.UserName,
-		Type:         &dbDomain.Type,
+		Name:       &dbDomain.Name,
+		DomainName: &dbDomain.DomainName,
+		FromDate:   &dbDomain.FromDate,
+		DueDate:    dbDomain.DueDate,
+		Type:       &dbDomain.Type,
 	}
 
-	if dbDomain.Version != nil {
-		domainResponse.Version = dbDomain.Version
-	} else {
-		domainResponse.Version = &unknown
-	}
 	if dbDomain.Description != nil {
 		domainResponse.Description = dbDomain.Description
 	} else {
@@ -47,15 +37,12 @@ func (dbDomain *DBStruct) toJSON() *JSONStruct {
 }
 
 type JSONStruct struct {
-	Name         *string `json:"name"`
-	Organisation *string `json:"organisation"`
-	PrimaryURL   *string `json:"primaryUrl"`
-	AdminURL     *string `json:"adminUrl"`
-	Version      *string `json:"version"`
-	Type         *string `json:"type"`
-	DataPath     *string `json:"data_path"`
-	UserName     *string `json:"user_name"`
-	Description  *string `json:"description"`
+	Name        *string    `json:"name"`
+	DomainName  *string    `json:"organisation"`
+	FromDate    *time.Time `json:"primaryUrl"`
+	DueDate     *time.Time `json:"adminUrl"`
+	Type        *string    `json:"type"`
+	Description *string    `json:"description"`
 }
 
 func QueryAll(params handlers.QueryParams) ([]*JSONStruct, error) {

@@ -3,7 +3,7 @@ package domains
 import (
 	"database/sql"
 	"encoding/json"
-	"files-back/dbase/dbdomain"
+	"files-back/dbase/dbdomains"
 	"files-back/handlers"
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
@@ -24,8 +24,8 @@ type IncomingStruct struct {
 	Description  string `json:"description" validate:"required"`
 }
 
-func (NewDomain *IncomingStruct) toDB() *dbdomain.DBStruct {
-	domainResponse := dbdomain.DBStruct{
+func (NewDomain *IncomingStruct) toDB() *dbdomains.DBStruct {
+	domainResponse := dbdomains.DBStruct{
 		Password:     NewDomain.Password,
 		Description:  &NewDomain.Description,
 		Name:         NewDomain.Name,
@@ -40,7 +40,7 @@ func (NewDomain *IncomingStruct) toDB() *dbdomain.DBStruct {
 }
 
 func GetAll(w http.ResponseWriter, r *http.Request) {
-	domains, err := dbdomain.QueryAll(handlers.GetQueryParams(r.URL))
+	domains, err := dbdomains.QueryAll(handlers.GetQueryParams(r.URL))
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -55,7 +55,7 @@ func GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetOne(w http.ResponseWriter, r *http.Request) {
-	responseDomain, err := dbdomain.QueryOne(extractName(r))
+	responseDomain, err := dbdomains.QueryOne(extractName(r))
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -74,7 +74,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handlers.StatusBadData(err, w)
 	}
-	err = dbdomain.Insert(newDomain.toDB())
+	err = dbdomains.Insert(newDomain.toDB())
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -85,7 +85,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	responseDomain, err := dbdomain.QueryOne(newDomain.Name)
+	responseDomain, err := dbdomains.QueryOne(newDomain.Name)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -104,7 +104,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handlers.StatusBadData(err, w)
 	}
-	err = dbdomain.Update(newDomain.toDB(), extractName(r))
+	err = dbdomains.Update(newDomain.toDB(), extractName(r))
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -115,7 +115,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	responseDomain, err := dbdomain.QueryOne(newDomain.Name)
+	responseDomain, err := dbdomains.QueryOne(newDomain.Name)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -130,7 +130,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	err := dbdomain.Delete(extractName(r))
+	err := dbdomains.Delete(extractName(r))
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:

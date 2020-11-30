@@ -8,8 +8,9 @@ import (
 	"os"
 )
 
-//var Db *sql.DB
-var DB *sqlx.DB
+var (
+	DB *sqlx.DB
+)
 
 func InitDB(dbuser, dbpwd, dbname, dbhost, dbport string) {
 	dataSourceName := fmt.Sprintf("postgres://%v:%v@%v:%v/%v", dbuser, dbpwd, dbhost, dbport, dbname)

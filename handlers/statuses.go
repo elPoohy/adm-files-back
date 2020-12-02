@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"github.com/jackc/pgx"
 	"log"
 	"net/http"
 )
@@ -9,6 +11,20 @@ import (
 type Status struct {
 	Code    int
 	Message string
+}
+
+func ReturnError(w http.ResponseWriter, err error) {
+	switch {
+	case err == sql.ErrNoRows:
+		StatusDBNotFound(err, w)
+		return
+	case err.(pgx.PgError).Code == "23505":
+		StatusDBAllreadyExist(err, w)
+		return
+	default:
+		StatusDBError(err, w)
+		return
+	}
 }
 
 func StatusDBError(err error, w http.ResponseWriter) {
@@ -23,6 +39,20 @@ func StatusDBError(err error, w http.ResponseWriter) {
 		log.Println(err)
 	}
 }
+
+func StatusDBAllreadyExist(err error, w http.ResponseWriter) {
+	log.Println(err)
+	w.WriteHeader(http.StatusBadRequest)
+	err = json.NewEncoder(w).Encode(
+		Status{
+			Code:    http.StatusBadRequest,
+			Message: "Already exist",
+		})
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 func StatusDBNotFound(err error, w http.ResponseWriter) {
 	log.Println(err)
 	w.WriteHeader(http.StatusNotFound)

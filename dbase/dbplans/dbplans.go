@@ -1,4 +1,4 @@
-package dbdomain
+package dbplans
 
 import (
 	"files-back/dbase"
@@ -38,35 +38,43 @@ func (dbDomain *DBStruct) toJSON() *JSONStruct {
 
 type JSONStruct struct {
 	Name        *string    `json:"name"`
-	DomainName  *string    `json:"organisation"`
-	FromDate    *time.Time `json:"primaryUrl"`
-	DueDate     *time.Time `json:"adminUrl"`
+	DomainName  *string    `json:"domainName"`
+	FromDate    *time.Time `json:"fromDate"`
+	DueDate     *time.Time `json:"dueDate"`
 	Type        *string    `json:"type"`
 	Description *string    `json:"description"`
 }
 
-func QueryAll(params handlers.QueryParams) ([]*JSONStruct, error) {
-	var resultDomains []*JSONStruct
+func Query(p handlers.QueryParams) ([]*JSONStruct, error) {
+	var res []*JSONStruct
 	var rows *sqlx.Rows
 	var err error
+	var sqlWhere string
+	if p.Search != nil {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(p.name LIKE :search OR d.name LIKE :search OR d.organisation LIKE :search) "
+	}
+	if p.DomainName != nil {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(d.name = :domain_name) "
+	}
+	if p.DomainName != nil && p.PlanName != nil {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(d.name = :domain_name AND p.name = :plan_name) "
+	}
+	if !p.ShowDeleted && !p.ShowDisabled {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(p.type NOT IN ('disabled', 'deleted')) "
+	}
+	if p.ShowDisabled && !p.ShowDeleted {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(p.type NOT IN ('deleted')) "
+	}
 	sqlQuery := `
 		SELECT
-		       name,  primary_url, admin_url, organisation, version, type
-		FROM domains
+		       p.name as name, d.name as domain_name, p.from_date as from_date, p.due_date as due_date, p.type as type, p.description as description
+		FROM plans p
+		JOIN domains d ON d.id = p.domain_id ` + sqlWhere + `
 		LIMIT :limit
 		    OFFSET :offset`
-	if params.Search != "%%" {
-		sqlQuery = `
-			SELECT
-					name, primary_url, admin_url, organisation, version, type FROM domains 
-			WHERE
-					name LIKE :search OR organisation LIKE :search
-			LIMIT :limit
-			OFFSET :offset`
-	}
-	rows, err = dbase.DB.NamedQuery(sqlQuery, params)
+	rows, err = dbase.DB.NamedQuery(sqlQuery, p)
 	if err != nil {
-		return resultDomains, err
+		return res, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -77,65 +85,64 @@ func QueryAll(params handlers.QueryParams) ([]*JSONStruct, error) {
 		var resultDomain DBStruct
 		err := rows.StructScan(&resultDomain)
 		if err != nil {
-			return resultDomains, err
+			return res, err
 		}
 		domainResponse := resultDomain.toJSON()
-		resultDomains = append(resultDomains, domainResponse)
+		res = append(res, domainResponse)
 	}
-	return resultDomains, nil
+	return res, nil
 }
 
-func QueryOne(domainName string) (*JSONStruct, error) {
-	var resultDomain *JSONStruct
-	var DBDomain DBStruct
-	err := dbase.DB.QueryRowx("SELECT name, organisation, primary_url, admin_url, data_path, user_name, type FROM domains WHERE name=$1", domainName).StructScan(&DBDomain)
-	if err != nil {
-		return resultDomain, err
-	}
-	resultDomain = DBDomain.toJSON()
-	return resultDomain, nil
-}
-
-func Delete(domainName string) error {
-	_, err := dbase.DB.Exec("DELETE FROM domains WHERE name=$1", domainName)
+func Delete(p handlers.QueryParams) error {
+	_, err := dbase.DB.NamedExec(`
+		UPDATE plans SET type = :delete WHERE id IN 
+			(SELECT
+		       p.id
+		    FROM plans p
+		    JOIN domains d ON d.id = p.domain_id
+			WHERE
+				p.name=:domain_name AND d.name=:plan_name)`,
+		p,
+	)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func Insert(domain *DBStruct) error {
+func Insert(plan *DBStruct) error {
 	_, err := dbase.DB.NamedExec(`
-			INSERT INTO domains
-				(name, organisation, admin_url, primary_url, data_path, password, user_name, type, description)
-			VALUES
-			    (:name, :organisation, :admin_url, :primary_url, :data_path, :password, :user_name, :type, :description)`,
-		domain)
+			INSERT INTO plans
+				(name, from_date, description, due_date, type, domain_id)
+			SELECT
+			    :name, :from_date, :description, :due_date, :type, domains.id
+			FROM domains
+			WHERE domains.name = :domain_name`,
+		plan)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func Update(domain *DBStruct, domainName string) error {
-
-	domain.OldName = &domainName
+func Update(plan *DBStruct, p handlers.QueryParams) error {
+	plan.OldName = p.PlanName
 	_, err := dbase.DB.NamedExec(`
-			UPDATE domains
+			UPDATE plans
 			SET 
 			    name = :name,
-			    organisation = :organisation,
-			    admin_url = :admin_url,
-			    primary_url = :primary_url,
-			    data_path = :data_path,
-			    password = :password,
-			    user_name = :user_name,
-			    type = :type,
-			    description = :description
-			WHERE
-				name = :old_name
-			    `,
-		domain)
+			    from_date = :from_date,
+			    description = :description,
+			    due_date =  :due_date,
+			    type = :type
+			WHERE id IN 
+			   (SELECT
+		          p.id
+		        FROM plans p
+	    	    JOIN domains d ON d.id = p.domain_id
+			    WHERE
+					p.name = :old_name AND d.name = :domain_name)`,
+		plan)
 	if err != nil {
 		return err
 	}

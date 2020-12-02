@@ -2,39 +2,114 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 )
 
-var defaultLimit = 10
-var defaultOffset = 0
+var (
+	defaultLimit  = 10
+	defaultOffset = 0
+	deleted       = "deleted"
+	disabled      = "disabled"
+)
 
 type QueryParams struct {
-	Limit  int    `db:"limit"`
-	Offset int    `db:"offset"`
-	Search string `db:"search"`
+	Limit        *int    `db:"limit"`
+	Offset       *int    `db:"offset"`
+	Search       *string `db:"search"`
+	DeleteType   *string `db:"delete"`
+	ShowDeleted  bool
+	ShowDisabled bool
+	DomainName   *string `db:"domain_name"`
+	PlanName     *string `db:"plan_name"`
 }
 
-func GetQueryParams(URL *url.URL) QueryParams {
-	response := QueryParams{
-		Limit:  defaultLimit,
-		Offset: defaultOffset,
-		Search: "",
+func GetQueryParams(r *http.Request) QueryParams {
+	return QueryParams{
+		Limit:        getLimit(r),
+		Offset:       getOffset(r),
+		Search:       getSearchLine(r),
+		DomainName:   getDomain(r),
+		PlanName:     getPlan(r),
+		DeleteType:   getDeleteType(r),
+		ShowDeleted:  getDeleted(r),
+		ShowDisabled: getDisabled(r),
 	}
-	limitString := URL.Query().Get("limit")
-	temp, err := strconv.Atoi(limitString)
-	if err == nil {
-		response.Limit = temp
+}
+
+func getSearchLine(r *http.Request) *string {
+	switch temp := r.URL.Query().Get("search"); temp {
+	case "":
+		return nil
+	default:
+		temp = "%" + temp + "%"
+		return &temp
 	}
-	offsetString := URL.Query().Get("offset")
-	temp, err = strconv.Atoi(offsetString)
-	if err == nil {
-		response.Offset = temp
+
+}
+
+func getLimit(r *http.Request) *int {
+	resp, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil {
+		return &defaultLimit
 	}
-	response.Search = "%" + URL.Query().Get("search") + "%"
-	return response
+	return &resp
+}
+
+func getOffset(r *http.Request) *int {
+	resp, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil {
+		return &defaultOffset
+	}
+	return &resp
+}
+
+func getDomain(r *http.Request) *string {
+	switch resp := mux.Vars(r)["domainName"]; resp {
+	case "":
+		return nil
+	default:
+		return &resp
+	}
+}
+
+func getPlan(r *http.Request) *string {
+	switch resp := mux.Vars(r)["planName"]; resp {
+	case "":
+		return nil
+	default:
+		return &resp
+	}
+}
+
+func getDeleteType(r *http.Request) *string {
+	switch r.URL.Query().Get("forced") {
+	case "true":
+		return &deleted
+	default:
+		return &disabled
+	}
+
+}
+
+func getDeleted(r *http.Request) bool {
+	switch r.URL.Query().Get("deleted") {
+	case "true":
+		return true
+	default:
+		return false
+	}
+}
+
+func getDisabled(r *http.Request) bool {
+	switch r.URL.Query().Get("deleted") {
+	case "true":
+		return true
+	default:
+		return false
+	}
 }
 
 func ResponseJSON(w http.ResponseWriter, err error, domains interface{}) {

@@ -1,12 +1,10 @@
 package domains
 
 import (
-	"database/sql"
 	"encoding/json"
 	"files-back/dbase/dbdomains"
 	"files-back/handlers"
 	"github.com/go-playground/validator/v10"
-	"github.com/gorilla/mux"
 	"net/http"
 )
 
@@ -15,13 +13,13 @@ var validate *validator.Validate
 type IncomingStruct struct {
 	Name         string `json:"name" validate:"required,alphanum,min=2,max=15,lowercase"`
 	Organisation string `json:"organisation" validate:"required"`
-	PrimaryURL   string `json:"primaryUrl" validate:"required"`
-	AdminURL     string `json:"adminUrl" validate:"required"`
-	DataPath     string `json:"data_path"`
+	PrimaryURL   string `json:"primaryUrl" validate:"required,url"`
+	AdminURL     string `json:"adminUrl" validate:"required,url"`
+	DataPath     string `json:"data_path" validate:"required"`
 	UserName     string `json:"user_name" validate:"required,alphanum,min=2,max=15,lowercase"`
 	Password     string `json:"password" validate:"required,min=12"`
 	Type         string `json:"type" validate:"required,oneof=primary wholesale premium"`
-	Description  string `json:"description" validate:"required"`
+	Description  string `json:"description"`
 }
 
 func (NewDomain *IncomingStruct) toDB() *dbdomains.DBStruct {
@@ -39,107 +37,61 @@ func (NewDomain *IncomingStruct) toDB() *dbdomains.DBStruct {
 	return &domainResponse
 }
 
-func GetAll(w http.ResponseWriter, r *http.Request) {
-	domains, err := dbdomains.QueryAll(handlers.GetQueryParams(r.URL))
+func Get(w http.ResponseWriter, r *http.Request) {
+	domains, err := dbdomains.Query(handlers.GetQueryParams(r))
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			handlers.StatusDBNotFound(err, w)
-			return
-		default:
-			handlers.StatusDBError(err, w)
-			return
-		}
+		handlers.StatusBadData(err, w)
+		return
 	}
-	handlers.ResponseJSON(w, err, domains)
-}
-
-func GetOne(w http.ResponseWriter, r *http.Request) {
-	responseDomain, err := dbdomains.QueryOne(extractName(r))
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			handlers.StatusDBNotFound(err, w)
-			return
-		default:
-			handlers.StatusDBError(err, w)
-			return
-		}
+	if len(domains) == 1 {
+		handlers.ResponseJSON(w, err, domains[0])
+	} else {
+		handlers.ResponseJSON(w, err, domains)
 	}
-	handlers.ResponseJSON(w, err, responseDomain)
 }
 
 func Create(w http.ResponseWriter, r *http.Request) {
-	newDomain, err := extract(r)
+	n, err := extract(r)
 	if err != nil {
 		handlers.StatusBadData(err, w)
+		return
 	}
-	err = dbdomains.Insert(newDomain.toDB())
+	err = dbdomains.Insert(n.toDB())
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			handlers.StatusDBNotFound(err, w)
-			return
-		default:
-			handlers.StatusDBError(err, w)
-			return
-		}
+		handlers.StatusBadData(err, w)
+		return
 	}
-	responseDomain, err := dbdomains.QueryOne(newDomain.Name)
+	responseDomain, err := dbdomains.Query(handlers.QueryParams{DomainName: &n.Name})
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			handlers.StatusDBNotFound(err, w)
-			return
-		default:
-			handlers.StatusDBError(err, w)
-			return
-		}
+		handlers.StatusBadData(err, w)
+		return
 	}
 	handlers.ResponseJSON(w, err, responseDomain)
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
-	newDomain, err := extract(r)
+	n, err := extract(r)
 	if err != nil {
 		handlers.StatusBadData(err, w)
 	}
-	err = dbdomains.Update(newDomain.toDB(), extractName(r))
+	err = dbdomains.Update(n.toDB(), handlers.GetQueryParams(r))
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			handlers.StatusDBNotFound(err, w)
-			return
-		default:
-			handlers.StatusDBError(err, w)
-			return
-		}
+		handlers.StatusBadData(err, w)
+		return
 	}
-	responseDomain, err := dbdomains.QueryOne(newDomain.Name)
+	responseDomain, err := dbdomains.Query(handlers.QueryParams{DomainName: &n.Name})
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			handlers.StatusDBNotFound(err, w)
-			return
-		default:
-			handlers.StatusDBError(err, w)
-			return
-		}
+		handlers.StatusBadData(err, w)
+		return
 	}
 	handlers.ResponseJSON(w, err, responseDomain)
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	err := dbdomains.Delete(extractName(r))
+	err := dbdomains.Delete(handlers.GetQueryParams(r))
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			handlers.StatusDBNotFound(err, w)
-			return
-		default:
-			handlers.StatusDBError(err, w)
-			return
-		}
+		handlers.StatusBadData(err, w)
+		return
 	}
 	handlers.ResponseJSON(w, err, handlers.Status{
 		Code:    200,
@@ -159,8 +111,4 @@ func extract(r *http.Request) (*IncomingStruct, error) {
 		return nil, err
 	}
 	return &NewDomain, nil
-}
-
-func extractName(r *http.Request) string {
-	return mux.Vars(r)["domainName"]
 }

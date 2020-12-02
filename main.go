@@ -2,6 +2,7 @@ package main
 
 import (
 	"files-back/handlers/domains"
+	"files-back/handlers/plans"
 
 	"files-back/dbase"
 	"github.com/gorilla/mux"
@@ -35,11 +36,17 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/domains", domains.GetAll).Methods(http.MethodGet)
-	router.HandleFunc("/domains/{domainName}", domains.GetOne).Methods(http.MethodGet)
+	router.HandleFunc("/domains", domains.Get).Methods(http.MethodGet)
+	router.HandleFunc("/domains/{domainName}", domains.Get).Methods(http.MethodGet)
 	router.HandleFunc("/domains", domains.Create).Methods(http.MethodPost)
 	router.HandleFunc("/domains/{domainName}", domains.Update).Methods(http.MethodPut)
 	router.HandleFunc("/domains/{domainName}", domains.Delete).Methods(http.MethodDelete)
+	router.HandleFunc("/plans", plans.Get).Methods(http.MethodGet)
+	router.HandleFunc("/domains/{domainName}/plans", plans.Get).Methods(http.MethodGet)
+	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Get).Methods(http.MethodGet)
+	router.HandleFunc("/domains/{domainName}/plans", plans.Create).Methods(http.MethodPost)
+	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Update).Methods(http.MethodPut)
+	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Delete).Methods(http.MethodDelete)
 
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }

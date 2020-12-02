@@ -3,6 +3,7 @@ package dbdomains
 import (
 	"files-back/dbase"
 	"files-back/handlers"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"log"
 )
@@ -58,28 +59,32 @@ type JSONStruct struct {
 	Description  *string `json:"description"`
 }
 
-func QueryAll(params handlers.QueryParams) ([]*JSONStruct, error) {
-	var resultDomains []*JSONStruct
+func Query(p handlers.QueryParams) ([]*JSONStruct, error) {
+	var res []*JSONStruct
 	var rows *sqlx.Rows
 	var err error
+	var sqlWhere string
+	if p.Search != nil {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(name LIKE :search OR organisation LIKE :search) "
+	}
+	if p.DomainName != nil {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(name = :domain_name) "
+	}
+	if !p.ShowDeleted && !p.ShowDisabled {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(type NOT IN ('disabled', 'deleted')) "
+	}
+	if p.ShowDisabled && !p.ShowDeleted {
+		sqlWhere = dbase.AppendWhere(sqlWhere) + "(type NOT IN ('deleted')) "
+	}
 	sqlQuery := `
 		SELECT
-		       name,  primary_url, admin_url, organisation, version, type
-		FROM domains
+		       name,  primary_url, admin_url, organisation, version, type, data_path, user_name
+		FROM domains ` + sqlWhere + `
 		LIMIT :limit
 		    OFFSET :offset`
-	if params.Search != "%%" {
-		sqlQuery = `
-			SELECT
-					name, primary_url, admin_url, organisation, version, type FROM domains 
-			WHERE
-					name LIKE :search OR organisation LIKE :search
-			LIMIT :limit
-			OFFSET :offset`
-	}
-	rows, err = dbase.DB.NamedQuery(sqlQuery, params)
+	rows, err = dbase.DB.NamedQuery(sqlQuery, p)
 	if err != nil {
-		return resultDomains, err
+		return res, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -90,27 +95,17 @@ func QueryAll(params handlers.QueryParams) ([]*JSONStruct, error) {
 		var resultDomain DBStruct
 		err := rows.StructScan(&resultDomain)
 		if err != nil {
-			return resultDomains, err
+			return res, err
 		}
 		domainResponse := resultDomain.toJSON()
-		resultDomains = append(resultDomains, domainResponse)
+		res = append(res, domainResponse)
 	}
-	return resultDomains, nil
+	return res, nil
 }
 
-func QueryOne(domainName string) (*JSONStruct, error) {
-	var resultDomain *JSONStruct
-	var DBDomain DBStruct
-	err := dbase.DB.QueryRowx("SELECT name, organisation, primary_url, admin_url, data_path, user_name, type FROM domains WHERE name=$1", domainName).StructScan(&DBDomain)
-	if err != nil {
-		return resultDomain, err
-	}
-	resultDomain = DBDomain.toJSON()
-	return resultDomain, nil
-}
-
-func Delete(domainName string) error {
-	_, err := dbase.DB.Exec("DELETE FROM domains WHERE name=$1", domainName)
+func Delete(p handlers.QueryParams) error {
+	fmt.Println(p)
+	_, err := dbase.DB.NamedExec("UPDATE domains SET type=:delete WHERE name=:domain_name", p)
 	if err != nil {
 		return err
 	}
@@ -130,9 +125,9 @@ func Insert(domain *DBStruct) error {
 	return nil
 }
 
-func Update(domain *DBStruct, domainName string) error {
+func Update(domain *DBStruct, p handlers.QueryParams) error {
 
-	domain.OldName = &domainName
+	domain.OldName = p.DomainName
 	_, err := dbase.DB.NamedExec(`
 			UPDATE domains
 			SET 

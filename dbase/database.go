@@ -22,3 +22,12 @@ func InitDB(dbuser, dbpwd, dbname, dbhost, dbport string) {
 	}
 	DB = db
 }
+
+func AppendWhere(where string) string {
+	if len(where) == 0 {
+		where = "WHERE "
+	} else {
+		where = where + "AND "
+	}
+	return where
+}

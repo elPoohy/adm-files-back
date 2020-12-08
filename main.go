@@ -1,10 +1,11 @@
 package main
 
 import (
+	"files-back/auth"
+	"files-back/auth/directory"
+	"files-back/dbase"
 	"files-back/handlers/domains"
 	"files-back/handlers/plans"
-
-	"files-back/dbase"
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/joho/godotenv"
@@ -26,27 +27,55 @@ func main() {
 	if port == "" {
 		port = defaultPort
 	}
-	dbuser := os.Getenv("DBUSER")
-	dbpwd := os.Getenv("DBPWD")
-	dbname := os.Getenv("DB")
-	dbhost := os.Getenv("DBHOST")
-	dbport := os.Getenv("DBPORT")
+	auth.SecretKey = []byte(os.Getenv("SECRET"))
 
-	dbase.InitDB(dbuser, dbpwd, dbname, dbhost, dbport)
+	DBConnect()
+	defer dbase.DB.Close()
+
+	LDAPConnect()
+	defer directory.LDAP.Close()
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/domains", domains.Get).Methods(http.MethodGet)
-	router.HandleFunc("/domains/{domainName}", domains.Get).Methods(http.MethodGet)
-	router.HandleFunc("/domains", domains.Create).Methods(http.MethodPost)
-	router.HandleFunc("/domains/{domainName}", domains.Update).Methods(http.MethodPut)
-	router.HandleFunc("/domains/{domainName}", domains.Delete).Methods(http.MethodDelete)
+	router.HandleFunc("/login", auth.Login).Methods(http.MethodGet)
+
+	domainsHandlers(router)
+	plansHandlers(router)
+
+	log.Fatal(http.ListenAndServe(":"+port, router))
+}
+
+func plansHandlers(router *mux.Router) {
 	router.HandleFunc("/plans", plans.Get).Methods(http.MethodGet)
 	router.HandleFunc("/domains/{domainName}/plans", plans.Get).Methods(http.MethodGet)
 	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Get).Methods(http.MethodGet)
 	router.HandleFunc("/domains/{domainName}/plans", plans.Create).Methods(http.MethodPost)
 	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Update).Methods(http.MethodPut)
 	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Delete).Methods(http.MethodDelete)
+}
 
-	log.Fatal(http.ListenAndServe(":"+port, router))
+func domainsHandlers(router *mux.Router) {
+	router.HandleFunc("/domains", domains.Get).Methods(http.MethodGet)
+	router.HandleFunc("/domains/{domainName}", domains.Get).Methods(http.MethodGet)
+	router.HandleFunc("/domains", domains.Create).Methods(http.MethodPost)
+	router.HandleFunc("/domains/{domainName}", domains.Update).Methods(http.MethodPut)
+	router.HandleFunc("/domains/{domainName}", domains.Delete).Methods(http.MethodDelete)
+}
+
+func DBConnect() {
+	dbuser := os.Getenv("DBUSER")
+	dbpwd := os.Getenv("DBPWD")
+	dbname := os.Getenv("DB")
+	dbhost := os.Getenv("DBHOST")
+	dbport := os.Getenv("DBPORT")
+	dbase.InitDB(dbuser, dbpwd, dbname, dbhost, dbport)
+}
+
+func LDAPConnect() {
+	directory.BindPassword = os.Getenv("BINDPASSWORD")
+	directory.BindUsername = os.Getenv("BINDUSERNAME")
+	directory.BaseDN = os.Getenv("BASEDN")
+	ldapAddr := os.Getenv("BINDADDRESS")
+	ldapPort := os.Getenv("BINDPORT")
+	directory.InitLDAP(ldapAddr, ldapPort)
 }

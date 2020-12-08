@@ -51,9 +51,9 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(plans) == 1 {
-		handlers.ResponseJSON(w, err, plans[0])
+		handlers.ResponseJSON(w, plans[0])
 	} else {
-		handlers.ResponseJSON(w, err, plans)
+		handlers.ResponseJSON(w, plans)
 	}
 }
 
@@ -73,7 +73,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, err, responseDomain)
+	handlers.ResponseJSON(w, responseDomain)
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +91,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, err, responseDomain)
+	handlers.ResponseJSON(w, responseDomain)
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +106,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	handlers.ResponseJSON(w, err, handlers.Status{
+	handlers.ResponseJSON(w, handlers.Status{
 		Code:    200,
 		Message: "Deleted",
 	})

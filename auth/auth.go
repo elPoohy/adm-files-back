@@ -10,11 +10,23 @@ import (
 	"time"
 )
 
-var SecretKey []byte
-
-var userCtxKey = contextKey("user")
+var (
+	SecretKey  []byte
+	TokenTTL   = time.Hour * 24
+	userCtxKey = contextKey("user")
+)
 
 type contextKey string
+
+type incomingJSON struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type Token struct {
+	Token   string `json:"token"`
+	Expires string `json:"expires"`
+}
 
 func Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -47,11 +59,9 @@ func ForContext(ctx context.Context) *string {
 
 func GenerateToken(username string) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
-	/* CreateUser a map to store our claims */
 	claims := token.Claims.(jwt.MapClaims)
-	/* Set token claims */
 	claims["username"] = username
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	claims["exp"] = time.Now().Add(TokenTTL).Unix()
 	tokenString, err := token.SignedString(SecretKey)
 	if err != nil {
 		log.Fatal("Error in Generating key")

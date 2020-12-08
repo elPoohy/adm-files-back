@@ -112,10 +112,10 @@ func getDisabled(r *http.Request) bool {
 	}
 }
 
-func ResponseJSON(w http.ResponseWriter, err error, domains interface{}) {
+func ResponseJSON(w http.ResponseWriter, domains interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(domains)
+	err := json.NewEncoder(w).Encode(domains)
 	if err != nil {
 		log.Println(err)
 	}

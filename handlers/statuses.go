@@ -19,11 +19,24 @@ func ReturnError(w http.ResponseWriter, err error) {
 		StatusDBNotFound(err, w)
 		return
 	case err.(pgx.PgError).Code == "23505":
-		StatusDBAllreadyExist(err, w)
+		StatusDBAlreadyExist(err, w)
 		return
 	default:
 		StatusDBError(err, w)
 		return
+	}
+}
+
+func StatusError(err error, w http.ResponseWriter) {
+	log.Println(err)
+	w.WriteHeader(http.StatusBadRequest)
+	err = json.NewEncoder(w).Encode(
+		Status{
+			Code:    http.StatusBadRequest,
+			Message: "Internal error",
+		})
+	if err != nil {
+		log.Println(err)
 	}
 }
 
@@ -40,7 +53,7 @@ func StatusDBError(err error, w http.ResponseWriter) {
 	}
 }
 
-func StatusDBAllreadyExist(err error, w http.ResponseWriter) {
+func StatusDBAlreadyExist(err error, w http.ResponseWriter) {
 	log.Println(err)
 	w.WriteHeader(http.StatusBadRequest)
 	err = json.NewEncoder(w).Encode(

@@ -2,7 +2,8 @@ package auth
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"files-back/handlers"
 	"github.com/dgrijalva/jwt-go"
 	"log"
 	"net/http"
@@ -14,6 +15,11 @@ var (
 	SecretKey  []byte
 	TokenTTL   = time.Hour * 24
 	userCtxKey = contextKey("user")
+)
+
+var (
+	Unauthorized = errors.New("unauthorized users")
+	BadToken     = errors.New("bad token")
 )
 
 type contextKey string
@@ -28,33 +34,23 @@ type Token struct {
 	Expires string `json:"expires"`
 }
 
-func Middleware() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("authorization")
-			bearerToken := strings.Split(authHeader, " ")
-			fmt.Println(authHeader)
-			if len(bearerToken) != 2 {
-				next.ServeHTTP(w, r)
-				return
-			}
-			username, err := ParseToken(bearerToken[1])
-			if err != nil {
-				http.Error(w, "Invalid token", http.StatusForbidden)
-				return
-			}
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := strings.Split(r.Header.Get("Authorization"), " ")
+		if len(authHeader) != 2 {
+			handlers.StatusUnauthorized(Unauthorized, w)
+			return
+		}
+		username, err := ParseToken(authHeader[1])
+		if err != nil {
+			handlers.StatusUnauthorized(err, w)
+			return
+		}
+		ctx := context.WithValue(r.Context(), userCtxKey, &username)
 
-			ctx := context.WithValue(r.Context(), userCtxKey, &username)
-
-			r = r.WithContext(ctx)
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func ForContext(ctx context.Context) *string {
-	raw, _ := ctx.Value(userCtxKey).(*string)
-	return raw
+		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func GenerateToken(username string) (string, error) {
@@ -71,9 +67,15 @@ func GenerateToken(username string) (string, error) {
 }
 
 func ParseToken(tokenStr string) (string, error) {
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		return SecretKey, nil
-	})
+	token, err := jwt.Parse(
+		tokenStr,
+		func(token *jwt.Token) (interface{}, error) {
+			return SecretKey, nil
+		},
+	)
+	if token == nil {
+		return "", BadToken
+	}
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		username := claims["username"].(string)
 		return username, nil

@@ -29,37 +29,38 @@ func main() {
 	}
 	auth.SecretKey = []byte(os.Getenv("SECRET"))
 
-	DBConnect()
-	defer dbase.DB.Close()
-
 	LDAPConnect()
-	defer directory.LDAP.Close()
+	DBConnect()
+	defer func() {
+		err := dbase.DB.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
 
 	router := mux.NewRouter()
-
 	router.HandleFunc("/login", auth.Login).Methods(http.MethodGet)
-
 	domainsHandlers(router)
 	plansHandlers(router)
 
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }
 
-func plansHandlers(router *mux.Router) {
-	router.HandleFunc("/plans", plans.Get).Methods(http.MethodGet)
-	router.HandleFunc("/domains/{domainName}/plans", plans.Get).Methods(http.MethodGet)
-	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Get).Methods(http.MethodGet)
-	router.HandleFunc("/domains/{domainName}/plans", plans.Create).Methods(http.MethodPost)
-	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Update).Methods(http.MethodPut)
-	router.HandleFunc("/domains/{domainName}/plans/{planName}", plans.Delete).Methods(http.MethodDelete)
+func domainsHandlers(router *mux.Router) {
+	router.Handle("/domains", auth.Middleware(http.HandlerFunc(domains.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}", auth.Middleware(http.HandlerFunc(domains.Get))).Methods(http.MethodGet)
+	router.Handle("/domains", auth.Middleware(http.HandlerFunc(domains.Create))).Methods(http.MethodPost)
+	router.Handle("/domains/{domainName}", auth.Middleware(http.HandlerFunc(domains.Update))).Methods(http.MethodPut)
+	router.Handle("/domains/{domainName}", auth.Middleware(http.HandlerFunc(domains.Delete))).Methods(http.MethodDelete)
 }
 
-func domainsHandlers(router *mux.Router) {
-	router.HandleFunc("/domains", domains.Get).Methods(http.MethodGet)
-	router.HandleFunc("/domains/{domainName}", domains.Get).Methods(http.MethodGet)
-	router.HandleFunc("/domains", domains.Create).Methods(http.MethodPost)
-	router.HandleFunc("/domains/{domainName}", domains.Update).Methods(http.MethodPut)
-	router.HandleFunc("/domains/{domainName}", domains.Delete).Methods(http.MethodDelete)
+func plansHandlers(router *mux.Router) {
+	router.Handle("/plans", auth.Middleware(http.HandlerFunc(plans.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/plans", auth.Middleware(http.HandlerFunc(plans.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/plans/{planName}", auth.Middleware(http.HandlerFunc(plans.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/plans", auth.Middleware(http.HandlerFunc(plans.Create))).Methods(http.MethodPost)
+	router.Handle("/domains/{domainName}/plans/{planName}", auth.Middleware(http.HandlerFunc(plans.Update))).Methods(http.MethodPut)
+	router.Handle("/domains/{domainName}/plans/{planName}", auth.Middleware(http.HandlerFunc(plans.Delete))).Methods(http.MethodDelete)
 }
 
 func DBConnect() {
@@ -72,10 +73,8 @@ func DBConnect() {
 }
 
 func LDAPConnect() {
-	directory.BindPassword = os.Getenv("BINDPASSWORD")
-	directory.BindUsername = os.Getenv("BINDUSERNAME")
+	directory.LDAPPassword = os.Getenv("BINDPASSWORD")
+	directory.LDAPUsername = os.Getenv("BINDUSERNAME")
 	directory.BaseDN = os.Getenv("BASEDN")
-	ldapAddr := os.Getenv("BINDADDRESS")
-	ldapPort := os.Getenv("BINDPORT")
-	directory.InitLDAP(ldapAddr, ldapPort)
+	directory.LDAPServer = os.Getenv("BINDADDRESS")
 }

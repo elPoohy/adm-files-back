@@ -81,9 +81,34 @@ func StatusDBNotFound(err error, w http.ResponseWriter) {
 
 func StatusBadData(err error, w http.ResponseWriter) {
 	log.Println(err)
+	w.WriteHeader(http.StatusBadRequest)
 	err = json.NewEncoder(w).Encode(Status{
 		Code:    http.StatusBadRequest,
 		Message: "Bad incoming data",
+	})
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func StatusInvalidCredentials(err error, w http.ResponseWriter) {
+	log.Println(err)
+	w.WriteHeader(http.StatusUnauthorized)
+	err = json.NewEncoder(w).Encode(Status{
+		Code:    http.StatusUnauthorized,
+		Message: "Invalid Credentials",
+	})
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func StatusUnauthorized(err error, w http.ResponseWriter) {
+	log.Println(err)
+	w.WriteHeader(http.StatusUnauthorized)
+	err = json.NewEncoder(w).Encode(Status{
+		Code:    http.StatusUnauthorized,
+		Message: "Unauthorized",
 	})
 	if err != nil {
 		log.Println(err)

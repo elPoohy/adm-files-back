@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"files-back/dbase/dbdomains"
 	"files-back/handlers"
+	"files-back/handlers/params"
 	"github.com/go-playground/validator/v10"
 	"net/http"
 )
@@ -24,29 +25,29 @@ type IncomingStruct struct {
 
 func (NewDomain *IncomingStruct) toDB() *dbdomains.DBStruct {
 	domainResponse := dbdomains.DBStruct{
-		Password:     NewDomain.Password,
+		Password:     &NewDomain.Password,
 		Description:  &NewDomain.Description,
 		Name:         NewDomain.Name,
-		Organisation: NewDomain.Organisation,
-		PrimaryURL:   NewDomain.PrimaryURL,
-		AdminURL:     NewDomain.AdminURL,
-		DataPath:     NewDomain.DataPath,
-		UserName:     NewDomain.UserName,
-		Type:         NewDomain.Type,
+		Organisation: &NewDomain.Organisation,
+		PrimaryURL:   &NewDomain.PrimaryURL,
+		AdminURL:     &NewDomain.AdminURL,
+		DataPath:     &NewDomain.DataPath,
+		UserName:     &NewDomain.UserName,
+		Type:         &NewDomain.Type,
 	}
 	return &domainResponse
 }
 
 func Get(w http.ResponseWriter, r *http.Request) {
-	domains, err := dbdomains.Query(handlers.GetQueryParams(r))
+	domains, err := dbdomains.Query(params.GetQueryParams(r))
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
 	if len(domains) == 1 {
-		handlers.ResponseJSON(w, domains[0])
+		params.ResponseJSON(w, domains[0])
 	} else {
-		handlers.ResponseJSON(w, domains)
+		params.ResponseJSON(w, domains)
 	}
 }
 
@@ -61,12 +62,12 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	responseDomain, err := dbdomains.Query(handlers.QueryParams{DomainName: &n.Name})
+	responseDomain, err := dbdomains.Query(params.QueryParams{DomainName: &n.Name})
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, responseDomain)
+	params.ResponseJSON(w, responseDomain)
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
@@ -74,26 +75,26 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handlers.StatusBadData(err, w)
 	}
-	err = dbdomains.Update(n.toDB(), handlers.GetQueryParams(r))
+	err = dbdomains.Update(n.toDB(), params.GetQueryParams(r))
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	responseDomain, err := dbdomains.Query(handlers.QueryParams{DomainName: &n.Name})
+	responseDomain, err := dbdomains.Query(params.QueryParams{DomainName: &n.Name})
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, responseDomain)
+	params.ResponseJSON(w, responseDomain)
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	err := dbdomains.Delete(handlers.GetQueryParams(r))
+	err := dbdomains.Delete(params.GetQueryParams(r))
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, handlers.Status{
+	params.ResponseJSON(w, handlers.Status{
 		Code:    200,
 		Message: "Deleted",
 	})

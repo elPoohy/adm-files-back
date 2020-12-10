@@ -14,7 +14,7 @@ import (
 var (
 	SecretKey  []byte
 	TokenTTL   = time.Hour * 24
-	userCtxKey = contextKey("user")
+	userCtxKey = contextKey("username")
 )
 
 var (

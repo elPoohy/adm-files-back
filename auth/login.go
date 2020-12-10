@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"files-back/auth/directory"
 	"files-back/handlers"
+	"files-back/handlers/params"
 	"github.com/go-ldap/ldap/v3"
 	"net/http"
 )
@@ -29,7 +30,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := GenerateToken(IncomeAuth.Username)
 
-	handlers.ResponseJSON(w, Token{
+	params.ResponseJSON(w, Token{
 		Token:   token,
 		Expires: "",
 	})

@@ -2,7 +2,7 @@ package dbdomains
 
 import (
 	"files-back/dbase"
-	"files-back/handlers"
+	"files-back/handlers/params"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"log"
@@ -11,14 +11,14 @@ import (
 type DBStruct struct {
 	Name         string  `db:"name"`
 	OldName      *string `db:"old_name"`
-	Organisation string  `db:"organisation"`
-	PrimaryURL   string  `db:"primary_url"`
-	AdminURL     string  `db:"admin_url"`
-	DataPath     string  `db:"data_path"`
-	Password     string  `db:"password"`
-	UserName     string  `db:"user_name"`
+	Organisation *string `db:"organisation"`
+	PrimaryURL   *string `db:"primary_url"`
+	AdminURL     *string `db:"admin_url"`
+	DataPath     *string `db:"data_path"`
+	Password     *string `db:"password"`
+	UserName     *string `db:"user_name"`
 	Version      *string `db:"version"`
-	Type         string  `db:"type"`
+	Type         *string `db:"type"`
 	Description  *string `db:"description"`
 }
 
@@ -26,12 +26,12 @@ func (dbDomain *DBStruct) toJSON() *JSONStruct {
 	unknown := "unknown"
 	domainResponse := JSONStruct{
 		Name:         &dbDomain.Name,
-		Organisation: &dbDomain.Organisation,
-		PrimaryURL:   &dbDomain.PrimaryURL,
-		AdminURL:     &dbDomain.AdminURL,
-		DataPath:     &dbDomain.DataPath,
-		UserName:     &dbDomain.UserName,
-		Type:         &dbDomain.Type,
+		Organisation: dbDomain.Organisation,
+		PrimaryURL:   dbDomain.PrimaryURL,
+		AdminURL:     dbDomain.AdminURL,
+		DataPath:     dbDomain.DataPath,
+		UserName:     dbDomain.UserName,
+		Type:         dbDomain.Type,
 	}
 
 	if dbDomain.Version != nil {
@@ -59,7 +59,7 @@ type JSONStruct struct {
 	Description  *string `json:"description"`
 }
 
-func Query(p handlers.QueryParams) ([]*JSONStruct, error) {
+func Query(p params.QueryParams) ([]*JSONStruct, error) {
 	var res []*JSONStruct
 	var rows *sqlx.Rows
 	var err error
@@ -103,7 +103,7 @@ func Query(p handlers.QueryParams) ([]*JSONStruct, error) {
 	return res, nil
 }
 
-func Delete(p handlers.QueryParams) error {
+func Delete(p params.QueryParams) error {
 	fmt.Println(p)
 	_, err := dbase.DB.NamedExec("UPDATE domains SET type=:delete WHERE name=:domain_name", p)
 	if err != nil {
@@ -125,7 +125,7 @@ func Insert(domain *DBStruct) error {
 	return nil
 }
 
-func Update(domain *DBStruct, p handlers.QueryParams) error {
+func Update(domain *DBStruct, p params.QueryParams) error {
 
 	domain.OldName = p.DomainName
 	_, err := dbase.DB.NamedExec(`

@@ -2,7 +2,7 @@ package dbplans
 
 import (
 	"files-back/dbase"
-	"files-back/handlers"
+	"files-back/handlers/params"
 	"github.com/jmoiron/sqlx"
 	"log"
 	"time"
@@ -11,10 +11,10 @@ import (
 type DBStruct struct {
 	Name        string     `db:"name"`
 	OldName     *string    `db:"old_name"`
-	DomainName  string     `db:"domain_name"`
-	FromDate    time.Time  `db:"from_date"`
+	DomainName  *string    `db:"domain_name"`
+	FromDate    *time.Time `db:"from_date"`
 	DueDate     *time.Time `db:"due_date"`
-	Type        string     `db:"type"`
+	Type        *string    `db:"type"`
 	Description *string    `db:"description"`
 }
 
@@ -22,10 +22,10 @@ func (dbDomain *DBStruct) toJSON() *JSONStruct {
 	unknown := "unknown"
 	domainResponse := JSONStruct{
 		Name:       &dbDomain.Name,
-		DomainName: &dbDomain.DomainName,
-		FromDate:   &dbDomain.FromDate,
+		DomainName: dbDomain.DomainName,
+		FromDate:   dbDomain.FromDate,
 		DueDate:    dbDomain.DueDate,
-		Type:       &dbDomain.Type,
+		Type:       dbDomain.Type,
 	}
 
 	if dbDomain.Description != nil {
@@ -45,7 +45,7 @@ type JSONStruct struct {
 	Description *string    `json:"description"`
 }
 
-func Query(p handlers.QueryParams) ([]*JSONStruct, error) {
+func Query(p params.QueryParams) ([]*JSONStruct, error) {
 	var res []*JSONStruct
 	var rows *sqlx.Rows
 	var err error
@@ -93,7 +93,7 @@ func Query(p handlers.QueryParams) ([]*JSONStruct, error) {
 	return res, nil
 }
 
-func Delete(p handlers.QueryParams) error {
+func Delete(p params.QueryParams) error {
 	_, err := dbase.DB.NamedExec(`
 		UPDATE plans SET type = :delete WHERE id IN 
 			(SELECT
@@ -125,7 +125,7 @@ func Insert(plan *DBStruct) error {
 	return nil
 }
 
-func Update(plan *DBStruct, p handlers.QueryParams) error {
+func Update(plan *DBStruct, p params.QueryParams) error {
 	plan.OldName = p.PlanName
 	_, err := dbase.DB.NamedExec(`
 			UPDATE plans

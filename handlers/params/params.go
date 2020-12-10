@@ -1,4 +1,4 @@
-package handlers
+package params
 
 import (
 	"encoding/json"
@@ -23,20 +23,23 @@ type QueryParams struct {
 	ShowDeleted  bool
 	ShowDisabled bool
 	DomainName   *string `db:"domain_name"`
+	TenantName   *string `db:"tenant_name"`
 	PlanName     *string `db:"plan_name"`
 }
 
 func GetQueryParams(r *http.Request) QueryParams {
-	return QueryParams{
+	resp := QueryParams{
 		Limit:        getLimit(r),
 		Offset:       getOffset(r),
 		Search:       getSearchLine(r),
 		DomainName:   getDomain(r),
+		TenantName:   getTenant(r),
 		PlanName:     getPlan(r),
 		DeleteType:   getDeleteType(r),
 		ShowDeleted:  getDeleted(r),
 		ShowDisabled: getDisabled(r),
 	}
+	return resp
 }
 
 func getSearchLine(r *http.Request) *string {
@@ -68,6 +71,15 @@ func getOffset(r *http.Request) *int {
 
 func getDomain(r *http.Request) *string {
 	switch resp := mux.Vars(r)["domainName"]; resp {
+	case "":
+		return nil
+	default:
+		return &resp
+	}
+}
+
+func getTenant(r *http.Request) *string {
+	switch resp := mux.Vars(r)["tenantName"]; resp {
 	case "":
 		return nil
 	default:

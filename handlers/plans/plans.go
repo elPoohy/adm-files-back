@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"files-back/dbase/dbplans"
 	"files-back/handlers"
+	"files-back/handlers/params"
 	"github.com/go-playground/validator/v10"
 	"net/http"
 	"time"
@@ -22,17 +23,18 @@ type IncomingStruct struct {
 }
 
 func (NewPlan *IncomingStruct) toDB() *dbplans.DBStruct {
+	now := time.Now()
 	planResponse := dbplans.DBStruct{
 		Name:        NewPlan.Name,
-		DomainName:  NewPlan.DomainName,
-		Type:        NewPlan.Type,
-		FromDate:    time.Now(),
+		DomainName:  &NewPlan.DomainName,
+		Type:        &NewPlan.Type,
+		FromDate:    &now,
 		Description: NewPlan.Description,
 	}
 	if NewPlan.FromDate != nil {
 		FromDate, err := time.Parse("2006-01-02", *NewPlan.FromDate)
 		if err == nil {
-			planResponse.FromDate = FromDate
+			planResponse.FromDate = &FromDate
 		}
 	}
 	if NewPlan.DueDate != nil {
@@ -45,15 +47,15 @@ func (NewPlan *IncomingStruct) toDB() *dbplans.DBStruct {
 }
 
 func Get(w http.ResponseWriter, r *http.Request) {
-	plans, err := dbplans.Query(handlers.GetQueryParams(r))
+	plans, err := dbplans.Query(params.GetQueryParams(r))
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
 	if len(plans) == 1 {
-		handlers.ResponseJSON(w, plans[0])
+		params.ResponseJSON(w, plans[0])
 	} else {
-		handlers.ResponseJSON(w, plans)
+		params.ResponseJSON(w, plans)
 	}
 }
 
@@ -68,12 +70,12 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		handlers.ReturnError(w, err)
 		return
 	}
-	responseDomain, err := dbplans.Query(handlers.QueryParams{DomainName: &n.DomainName, PlanName: &n.Name})
+	responseDomain, err := dbplans.Query(params.QueryParams{DomainName: &n.DomainName, PlanName: &n.Name})
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, responseDomain)
+	params.ResponseJSON(w, responseDomain)
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
@@ -81,21 +83,21 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handlers.StatusBadData(err, w)
 	}
-	err = dbplans.Update(n.toDB(), handlers.GetQueryParams(r))
+	err = dbplans.Update(n.toDB(), params.GetQueryParams(r))
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	responseDomain, err := dbplans.Query(handlers.QueryParams{DomainName: &n.DomainName, PlanName: &n.Name})
+	responseDomain, err := dbplans.Query(params.QueryParams{DomainName: &n.DomainName, PlanName: &n.Name})
 	if err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, responseDomain)
+	params.ResponseJSON(w, responseDomain)
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	err := dbplans.Delete(handlers.GetQueryParams(r))
+	err := dbplans.Delete(params.GetQueryParams(r))
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -106,7 +108,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	handlers.ResponseJSON(w, handlers.Status{
+	params.ResponseJSON(w, handlers.Status{
 		Code:    200,
 		Message: "Deleted",
 	})

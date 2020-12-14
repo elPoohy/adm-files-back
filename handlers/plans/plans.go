@@ -3,6 +3,7 @@ package plans
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"files-back/dbase/dbplans"
 	"files-back/handlers"
 	"files-back/handlers/params"
@@ -22,23 +23,23 @@ type IncomingStruct struct {
 	Description *string `json:"description"`
 }
 
-func (NewPlan *IncomingStruct) toDB() *dbplans.DBStruct {
+func (newPlan *IncomingStruct) toDB() *dbplans.DBStruct {
 	now := time.Now()
 	planResponse := dbplans.DBStruct{
-		Name:        NewPlan.Name,
-		DomainName:  &NewPlan.DomainName,
-		Type:        &NewPlan.Type,
+		Name:        newPlan.Name,
+		DomainName:  &newPlan.DomainName,
+		Type:        &newPlan.Type,
 		FromDate:    &now,
-		Description: NewPlan.Description,
+		Description: newPlan.Description,
 	}
-	if NewPlan.FromDate != nil {
-		FromDate, err := time.Parse("2006-01-02", *NewPlan.FromDate)
+	if newPlan.FromDate != nil {
+		FromDate, err := time.Parse("2006-01-02", *newPlan.FromDate)
 		if err == nil {
 			planResponse.FromDate = &FromDate
 		}
 	}
-	if NewPlan.DueDate != nil {
-		DueDate, err := time.Parse("2006-01-02", *NewPlan.DueDate)
+	if newPlan.DueDate != nil {
+		DueDate, err := time.Parse("2006-01-02", *newPlan.DueDate)
 		if err == nil {
 			planResponse.DueDate = &DueDate
 		}
@@ -53,9 +54,9 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(plans) == 1 {
-		params.ResponseJSON(w, plans[0])
+		handlers.ResponseJSON(w, plans[0])
 	} else {
-		params.ResponseJSON(w, plans)
+		handlers.ResponseJSON(w, plans)
 	}
 }
 
@@ -70,12 +71,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		handlers.ReturnError(w, err)
 		return
 	}
-	responseDomain, err := dbplans.Query(params.QueryParams{DomainName: &n.DomainName, PlanName: &n.Name})
-	if err != nil {
-		handlers.StatusBadData(err, w)
-		return
-	}
-	params.ResponseJSON(w, responseDomain)
+	handlers.StatusDone(w)
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
@@ -93,14 +89,14 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	params.ResponseJSON(w, responseDomain)
+	handlers.ResponseJSON(w, responseDomain)
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
 	err := dbplans.Delete(params.GetQueryParams(r))
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
 			handlers.StatusDBNotFound(err, w)
 			return
 		default:
@@ -108,7 +104,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	params.ResponseJSON(w, handlers.Status{
+	handlers.ResponseJSON(w, handlers.Status{
 		Code:    200,
 		Message: "Deleted",
 	})

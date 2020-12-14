@@ -45,7 +45,7 @@ func main() {
 	plansHandlers(router)
 	tenantsHandlers(router)
 
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	log.Panic(http.ListenAndServe(":"+port, router))
 }
 
 func domainsHandlers(router *mux.Router) {
@@ -67,8 +67,8 @@ func plansHandlers(router *mux.Router) {
 
 func tenantsHandlers(router *mux.Router) {
 	router.Handle("/tenants", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
-	router.Handle("/domains/{domainName}/tenants", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
-	router.Handle("/domains/{domainName}/tenants", auth.Middleware(http.HandlerFunc(tenants.Create))).Methods(http.MethodPost)
+	router.Handle("/tenants", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
+	router.Handle("/tenants", auth.Middleware(http.HandlerFunc(tenants.Create))).Methods(http.MethodPost)
 	router.Handle("/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
 	router.Handle("/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Update))).Methods(http.MethodPut)
 	router.Handle("/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Delete))).Methods(http.MethodDelete)

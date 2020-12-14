@@ -23,17 +23,17 @@ type IncomingStruct struct {
 	Description  string `json:"description"`
 }
 
-func (NewDomain *IncomingStruct) toDB() *dbdomains.DBStruct {
+func (newDomain *IncomingStruct) toDB() *dbdomains.DBStruct {
 	domainResponse := dbdomains.DBStruct{
-		Password:     &NewDomain.Password,
-		Description:  &NewDomain.Description,
-		Name:         NewDomain.Name,
-		Organisation: &NewDomain.Organisation,
-		PrimaryURL:   &NewDomain.PrimaryURL,
-		AdminURL:     &NewDomain.AdminURL,
-		DataPath:     &NewDomain.DataPath,
-		UserName:     &NewDomain.UserName,
-		Type:         &NewDomain.Type,
+		Password:     &newDomain.Password,
+		Description:  &newDomain.Description,
+		Name:         newDomain.Name,
+		Organisation: &newDomain.Organisation,
+		PrimaryURL:   &newDomain.PrimaryURL,
+		AdminURL:     &newDomain.AdminURL,
+		DataPath:     &newDomain.DataPath,
+		UserName:     &newDomain.UserName,
+		Type:         &newDomain.Type,
 	}
 	return &domainResponse
 }
@@ -45,9 +45,9 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(domains) == 1 {
-		params.ResponseJSON(w, domains[0])
+		handlers.ResponseJSON(w, domains[0])
 	} else {
-		params.ResponseJSON(w, domains)
+		handlers.ResponseJSON(w, domains)
 	}
 }
 
@@ -59,15 +59,10 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 	err = dbdomains.Insert(n.toDB())
 	if err != nil {
-		handlers.StatusBadData(err, w)
+		handlers.ReturnError(w, err)
 		return
 	}
-	responseDomain, err := dbdomains.Query(params.QueryParams{DomainName: &n.Name})
-	if err != nil {
-		handlers.StatusBadData(err, w)
-		return
-	}
-	params.ResponseJSON(w, responseDomain)
+	handlers.StatusDone(w)
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +80,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	params.ResponseJSON(w, responseDomain)
+	handlers.ResponseJSON(w, responseDomain)
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +89,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	params.ResponseJSON(w, handlers.Status{
+	handlers.ResponseJSON(w, handlers.Status{
 		Code:    200,
 		Message: "Deleted",
 	})

@@ -1,8 +1,8 @@
 package dbase
 
 import (
+	"database/sql"
 	"fmt"
-	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 	"log"
 	"os"
@@ -27,7 +27,34 @@ func AppendWhere(where string) string {
 	if len(where) == 0 {
 		where = "WHERE "
 	} else {
-		where = where + "AND "
+		where += "AND "
 	}
 	return where
+}
+
+func ExecWithChekOne(data interface{}, sqlQuery string) error {
+	tx, err := DB.Beginx()
+	if err != nil {
+		return err
+	}
+	result, err := tx.NamedExec(sqlQuery, data)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if rows != 1 {
+		_ = tx.Rollback()
+		return sql.ErrNoRows
+	}
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return nil
 }

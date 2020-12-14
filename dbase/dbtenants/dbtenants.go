@@ -5,21 +5,20 @@ import (
 	"files-back/dbase/dbdomains"
 	"files-back/dbase/dbplans"
 	"files-back/handlers/params"
-	"fmt"
 	"github.com/jmoiron/sqlx"
 	"log"
 )
 
 type DBStruct struct {
-	Name         string  `db:"name"`
-	OldName      *string `db:"old_name"`
-	Organisation *string `db:"organisation"`
-	OrderForm    *string `db:"order_form"`
-	OrderLink    *string `db:"order_link"`
-	Type         *string `db:"type"`
-	Description  *string `db:"description"`
-	Domain       *dbdomains.DBStruct
-	Plan         *dbplans.DBStruct
+	Name         string              `db:"tenant_name"`
+	OldName      *string             `db:"old_name"`
+	Organisation *string             `db:"organisation"`
+	OrderForm    *string             `db:"order_form"`
+	OrderLink    *string             `db:"order_link"`
+	Type         *string             `db:"type"`
+	Description  *string             `db:"description"`
+	Domain       *dbdomains.DBStruct `db:"domain"`
+	Plan         *dbplans.DBStruct   `db:"plan"`
 }
 
 func (dbTenant *DBStruct) toJSON() *JSONStruct {
@@ -44,13 +43,13 @@ func (dbTenant *DBStruct) toJSON() *JSONStruct {
 
 type JSONStruct struct {
 	Name         *string             `json:"name"`
-	Organisation *string             `json:"organisation"`
-	OrderForm    *string             `json:"orderForm"`
-	OrderLink    *string             `json:"orderLink"`
-	Type         *string             `json:"type"`
-	Description  *string             `json:"description"`
-	Domain       *dbdomains.DBStruct `json:"domain"`
-	Plan         *dbplans.DBStruct   `json:"plan"`
+	Organisation *string             `json:"organisation,omitempty"`
+	OrderForm    *string             `json:"orderForm,omitempty"`
+	OrderLink    *string             `json:"orderLink,omitempty"`
+	Type         *string             `json:"type,omitempty"`
+	Description  *string             `json:"description,omitempty"`
+	Domain       *dbdomains.DBStruct `json:"domain,omitempty"`
+	Plan         *dbplans.DBStruct   `json:"plan,omitempty"`
 }
 
 func Query(p params.QueryParams) ([]*JSONStruct, error) {
@@ -78,13 +77,12 @@ func Query(p params.QueryParams) ([]*JSONStruct, error) {
 	}
 	sqlQuery := `
 		SELECT
-				t.name as name, t.organisation as organisation, t.order_form as order_form, t.order_link as order_link, t.description as description, t.type as type, d.name as domain_name, p.name as plan_name
+				t.name as tenant_name, t.organisation as organisation, t.order_form as order_form, t.order_link as order_link, t.description as description, t.type as type, d.name as "domain.name", p.name as "plan.name"
 		FROM tenants t
 		JOIN domains d ON d.id = t.domain_id 
 		JOIN plans p ON d.id = p.domain_id ` + sqlWhere + `
 		LIMIT :limit
 		    OFFSET :offset`
-	fmt.Println(sqlQuery)
 	rows, err = dbase.DB.NamedQuery(sqlQuery, p)
 	if err != nil {
 		return res, err
@@ -107,8 +105,16 @@ func Query(p params.QueryParams) ([]*JSONStruct, error) {
 }
 
 func Delete(p params.QueryParams) error {
-	fmt.Println(p)
-	_, err := dbase.DB.NamedExec("UPDATE domains SET type=:delete WHERE name=:domain_name", p)
+	err := dbase.ExecWithChekOne(p, `
+		UPDATE tenants SET type = :delete WHERE id IN 
+			(SELECT
+		       t.id
+		    FROM tenants t
+		    JOIN domains d ON d.id = t.domain_id
+			WHERE
+				t.name=:tenant_name AND d.name=:domain_name)
+			RETURNING id`,
+	)
 	if err != nil {
 		return err
 	}
@@ -116,15 +122,15 @@ func Delete(p params.QueryParams) error {
 }
 
 func Insert(tenant *DBStruct) error {
-	_, err := dbase.DB.NamedExec(`
-			INSERT INTO tenants
-				(name, organisation, order_form, order_link, description, type, domain_id, plan_id)
-			SELECT
-			    :name, :organisation, :order_form, :order_link, :description, :type, d.id, p.id
-			FROM domains d
-			JOIN plans p on d.id = p.domain_id
-			WHERE d.name = :domain_name AND p.name = :plan_name`,
-		tenant)
+	sqlQuery := `INSERT INTO tenants
+							(name, organisation, order_form, order_link, description, type, domain_id, plan_id)
+						SELECT
+							:tenant_name, :organisation, :order_form, :order_link, :description, :type, d.id, p.id
+						FROM domains d
+						JOIN plans p on d.id = p.domain_id
+						WHERE d.name = :domain.name AND p.name = :plan.name
+						RETURNING id`
+	err := dbase.ExecWithChekOne(tenant, sqlQuery)
 	if err != nil {
 		return err
 	}
@@ -132,21 +138,19 @@ func Insert(tenant *DBStruct) error {
 }
 
 func Update(tenant *DBStruct, p params.QueryParams) error {
-
-	tenant.OldName = p.DomainName
-	_, err := dbase.DB.NamedExec(`
-			UPDATE tenants
+	tenant.OldName = p.TenantName
+	err := dbase.ExecWithChekOne(tenant,
+		`UPDATE tenants
 			SET 
 			    (name, organisation, order_form, order_link, description, type, domain_id, plan_id) = 
 			    (SELECT
-			    	:name, :organisation, :order_form, :order_link, :description, :type, d.id, p.id
+			    	:tenant_name, :organisation, :order_form, :order_link, :description, CAST (:type AS tenant_type), d.id, p.id
 				FROM domains d
 				JOIN plans p on d.id = p.domain_id
-				WHERE d.name = :domain_name AND p.name = :plan_name)
+				WHERE d.name = :domain.name AND p.name = :plan.name)
 			WHERE
 				name = :old_name
-			    `,
-		tenant)
+			RETURNING id`)
 	if err != nil {
 		return err
 	}

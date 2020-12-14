@@ -1,9 +1,7 @@
 package params
 
 import (
-	"encoding/json"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 	"strconv"
 )
@@ -14,6 +12,8 @@ var (
 	deleted       = "deleted"
 	disabled      = "disabled"
 )
+
+const incomingTrue = "true"
 
 type QueryParams struct {
 	Limit        *int    `db:"limit"`
@@ -50,7 +50,6 @@ func getSearchLine(r *http.Request) *string {
 		temp = "%" + temp + "%"
 		return &temp
 	}
-
 }
 
 func getLimit(r *http.Request) *int {
@@ -70,11 +69,15 @@ func getOffset(r *http.Request) *int {
 }
 
 func getDomain(r *http.Request) *string {
-	switch resp := mux.Vars(r)["domainName"]; resp {
-	case "":
-		return nil
+	respURL := mux.Vars(r)["domainName"]
+	respQuery := r.URL.Query().Get("domainName")
+	switch {
+	case respURL != "":
+		return &respURL
+	case respQuery != "":
+		return &respQuery
 	default:
-		return &resp
+		return nil
 	}
 }
 
@@ -98,17 +101,16 @@ func getPlan(r *http.Request) *string {
 
 func getDeleteType(r *http.Request) *string {
 	switch r.URL.Query().Get("forced") {
-	case "true":
+	case incomingTrue:
 		return &deleted
 	default:
 		return &disabled
 	}
-
 }
 
 func getDeleted(r *http.Request) bool {
 	switch r.URL.Query().Get("deleted") {
-	case "true":
+	case incomingTrue:
 		return true
 	default:
 		return false
@@ -117,18 +119,9 @@ func getDeleted(r *http.Request) bool {
 
 func getDisabled(r *http.Request) bool {
 	switch r.URL.Query().Get("deleted") {
-	case "true":
+	case incomingTrue:
 		return true
 	default:
 		return false
-	}
-}
-
-func ResponseJSON(w http.ResponseWriter, domains interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(domains)
-	if err != nil {
-		log.Println(err)
 	}
 }

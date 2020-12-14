@@ -37,12 +37,12 @@ func (dbDomain *DBStruct) toJSON() *JSONStruct {
 }
 
 type JSONStruct struct {
-	Name        *string    `json:"name"`
-	DomainName  *string    `json:"domainName"`
-	FromDate    *time.Time `json:"fromDate"`
-	DueDate     *time.Time `json:"dueDate"`
-	Type        *string    `json:"type"`
-	Description *string    `json:"description"`
+	Name        *string    `json:"name,omitempty"`
+	DomainName  *string    `json:"domainName,omitempty"`
+	FromDate    *time.Time `json:"fromDate,omitempty"`
+	DueDate     *time.Time `json:"dueDate,omitempty"`
+	Type        *string    `json:"type,omitempty"`
+	Description *string    `json:"description,omitempty"`
 }
 
 func Query(p params.QueryParams) ([]*JSONStruct, error) {
@@ -94,15 +94,15 @@ func Query(p params.QueryParams) ([]*JSONStruct, error) {
 }
 
 func Delete(p params.QueryParams) error {
-	_, err := dbase.DB.NamedExec(`
+	err := dbase.ExecWithChekOne(p, `
 		UPDATE plans SET type = :delete WHERE id IN 
 			(SELECT
 		       p.id
 		    FROM plans p
 		    JOIN domains d ON d.id = p.domain_id
 			WHERE
-				p.name=:domain_name AND d.name=:plan_name)`,
-		p,
+				p.name=:plan_name AND d.name=:domain_name)
+			RETURNING id`,
 	)
 	if err != nil {
 		return err
@@ -111,14 +111,14 @@ func Delete(p params.QueryParams) error {
 }
 
 func Insert(plan *DBStruct) error {
-	_, err := dbase.DB.NamedExec(`
-			INSERT INTO plans
+	err := dbase.ExecWithChekOne(plan,
+		`INSERT INTO plans
 				(name, from_date, description, due_date, type, domain_id)
 			SELECT
 			    :name, :from_date, :description, :due_date, :type, domains.id
 			FROM domains
-			WHERE domains.name = :domain_name`,
-		plan)
+			WHERE domains.name = :domain_name
+			RETURNING id`)
 	if err != nil {
 		return err
 	}
@@ -127,8 +127,8 @@ func Insert(plan *DBStruct) error {
 
 func Update(plan *DBStruct, p params.QueryParams) error {
 	plan.OldName = p.PlanName
-	_, err := dbase.DB.NamedExec(`
-			UPDATE plans
+	err := dbase.ExecWithChekOne(plan,
+		`UPDATE plans
 			SET 
 			    name = :name,
 			    from_date = :from_date,
@@ -141,8 +141,9 @@ func Update(plan *DBStruct, p params.QueryParams) error {
 		        FROM plans p
 	    	    JOIN domains d ON d.id = p.domain_id
 			    WHERE
-					p.name = :old_name AND d.name = :domain_name)`,
-		plan)
+					p.name = :old_name AND d.name = :domain_name)
+			RETURNING id`,
+	)
 	if err != nil {
 		return err
 	}

@@ -29,103 +29,72 @@ func ReturnError(w http.ResponseWriter, err error) {
 	StatusDBError(err, w)
 }
 
-func StatusDone(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(Status{
+func StatusDeleted(w http.ResponseWriter) {
+	ResponseJSON(w, Status{
+		Code:    http.StatusOK,
+		Message: "Deleted",
+	})
+}
+
+func StatusInserted(w http.ResponseWriter) {
+	ResponseJSON(w, Status{
 		Code:    http.StatusOK,
 		Message: "Inserted",
 	})
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func StatusError(err error, w http.ResponseWriter) {
-	log.Println(err)
-	w.WriteHeader(http.StatusBadRequest)
-	err = json.NewEncoder(w).Encode(
-		Status{
-			Code:    http.StatusBadRequest,
-			Message: "Internal error",
-		})
-	if err != nil {
-		log.Println(err)
-	}
+	responseError(w, err, Status{
+		Code:    http.StatusBadRequest,
+		Message: "Internal error",
+	})
 }
 
 func StatusDBError(err error, w http.ResponseWriter) {
-	log.Println(err)
-	w.WriteHeader(http.StatusBadRequest)
-	err = json.NewEncoder(w).Encode(
-		Status{
-			Code:    http.StatusBadRequest,
-			Message: "Database error",
-		})
-	if err != nil {
-		log.Println(err)
-	}
+	responseError(w, err, Status{
+		Code:    http.StatusBadRequest,
+		Message: "Database error",
+	})
 }
 
 func StatusDBAlreadyExist(err error, w http.ResponseWriter) {
-	log.Println(err)
-	w.WriteHeader(http.StatusBadRequest)
-	err = json.NewEncoder(w).Encode(
-		Status{
-			Code:    http.StatusBadRequest,
-			Message: "Already exist",
-		})
-	if err != nil {
-		log.Println(err)
-	}
+	responseError(w, err, Status{
+		Code:    http.StatusBadRequest,
+		Message: "Already exist",
+	})
 }
 
 func StatusDBNotFound(err error, w http.ResponseWriter) {
-	log.Println(err)
-	w.WriteHeader(http.StatusNotFound)
-	err = json.NewEncoder(w).Encode(
-		Status{
-			Code:    http.StatusNotFound,
-			Message: "Not found",
-		})
-	if err != nil {
-		log.Println(err)
-	}
+	responseError(w, err, Status{
+		Code:    http.StatusNotFound,
+		Message: "Not found",
+	})
 }
 
 func StatusBadData(err error, w http.ResponseWriter) {
-	log.Println(err)
-	w.WriteHeader(http.StatusBadRequest)
-	err = json.NewEncoder(w).Encode(Status{
+	responseError(w, err, Status{
 		Code:    http.StatusBadRequest,
 		Message: "Bad incoming data",
 	})
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func StatusInvalidCredentials(err error, w http.ResponseWriter) {
-	log.Println(err)
-	w.WriteHeader(http.StatusUnauthorized)
-	err = json.NewEncoder(w).Encode(Status{
+	responseError(w, err, Status{
 		Code:    http.StatusUnauthorized,
 		Message: "Invalid Credentials",
 	})
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func StatusUnauthorized(err error, w http.ResponseWriter) {
-	log.Println(err)
-	w.WriteHeader(http.StatusUnauthorized)
-	err = json.NewEncoder(w).Encode(Status{
+	responseError(w, err, Status{
 		Code:    http.StatusUnauthorized,
 		Message: "Unauthorized",
 	})
-	if err != nil {
-		log.Println(err)
-	}
+}
+
+func responseError(w http.ResponseWriter, err error, resp interface{}) {
+	log.Println(err)
+	ResponseJSON(w, resp)
 }
 
 func ResponseJSON(w http.ResponseWriter, resp interface{}) {

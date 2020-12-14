@@ -62,7 +62,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		handlers.ReturnError(w, err)
 		return
 	}
-	handlers.StatusDone(w)
+	handlers.StatusInserted(w)
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
@@ -89,10 +89,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	handlers.ResponseJSON(w, handlers.Status{
-		Code:    200,
-		Message: "Deleted",
-	})
+	handlers.StatusDeleted(w)
 }
 
 func extract(r *http.Request) (*IncomingStruct, error) {

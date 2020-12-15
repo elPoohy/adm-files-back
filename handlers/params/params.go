@@ -100,28 +100,16 @@ func getPlan(r *http.Request) *string {
 }
 
 func getDeleteType(r *http.Request) *string {
-	switch r.URL.Query().Get("forced") {
-	case incomingTrue:
+	if r.URL.Query().Get("forced") == incomingTrue {
 		return &deleted
-	default:
-		return &disabled
 	}
+	return &disabled
 }
 
 func getDeleted(r *http.Request) bool {
-	switch r.URL.Query().Get("deleted") {
-	case incomingTrue:
-		return true
-	default:
-		return false
-	}
+	return r.URL.Query().Get("deleted") == incomingTrue
 }
 
 func getDisabled(r *http.Request) bool {
-	switch r.URL.Query().Get("deleted") {
-	case incomingTrue:
-		return true
-	default:
-		return false
-	}
+	return r.URL.Query().Get("disabled") == incomingTrue
 }

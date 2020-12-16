@@ -13,7 +13,10 @@ var (
 	disabled      = "disabled"
 )
 
-const incomingTrue = "true"
+const (
+	incomingTrue = "true"
+	noData       = ""
+)
 
 type QueryParams struct {
 	Limit        *int    `db:"limit"`
@@ -25,6 +28,8 @@ type QueryParams struct {
 	DomainName   *string `db:"domain_name"`
 	TenantName   *string `db:"tenant_name"`
 	PlanName     *string `db:"plan_name"`
+	TariffName   *string `db:"tariff_name"`
+	GroupName    *string `db:"group_name"`
 }
 
 func GetQueryParams(r *http.Request) QueryParams {
@@ -34,7 +39,9 @@ func GetQueryParams(r *http.Request) QueryParams {
 		Search:       getSearchLine(r),
 		DomainName:   getDomain(r),
 		TenantName:   getTenant(r),
+		GroupName:    getGroup(r),
 		PlanName:     getPlan(r),
+		TariffName:   getTariff(r),
 		DeleteType:   getDeleteType(r),
 		ShowDeleted:  getDeleted(r),
 		ShowDisabled: getDisabled(r),
@@ -44,7 +51,7 @@ func GetQueryParams(r *http.Request) QueryParams {
 
 func getSearchLine(r *http.Request) *string {
 	switch temp := r.URL.Query().Get("search"); temp {
-	case "":
+	case noData:
 		return nil
 	default:
 		temp = "%" + temp + "%"
@@ -69,21 +76,35 @@ func getOffset(r *http.Request) *int {
 }
 
 func getDomain(r *http.Request) *string {
-	respURL := mux.Vars(r)["domainName"]
-	respQuery := r.URL.Query().Get("domainName")
-	switch {
-	case respURL != "":
-		return &respURL
-	case respQuery != "":
-		return &respQuery
-	default:
+	switch resp := mux.Vars(r)["domainName"]; resp {
+	case noData:
 		return nil
+	default:
+		return &resp
+	}
+}
+
+func getTariff(r *http.Request) *string {
+	switch resp := mux.Vars(r)["tariffName"]; resp {
+	case noData:
+		return nil
+	default:
+		return &resp
 	}
 }
 
 func getTenant(r *http.Request) *string {
 	switch resp := mux.Vars(r)["tenantName"]; resp {
-	case "":
+	case noData:
+		return nil
+	default:
+		return &resp
+	}
+}
+
+func getGroup(r *http.Request) *string {
+	switch resp := mux.Vars(r)["groupName"]; resp {
+	case noData:
 		return nil
 	default:
 		return &resp
@@ -92,7 +113,7 @@ func getTenant(r *http.Request) *string {
 
 func getPlan(r *http.Request) *string {
 	switch resp := mux.Vars(r)["planName"]; resp {
-	case "":
+	case noData:
 		return nil
 	default:
 		return &resp

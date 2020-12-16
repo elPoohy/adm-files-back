@@ -10,7 +10,7 @@ import (
 )
 
 type DBStruct struct {
-	Name         string              `db:"tenant_name"`
+	Name         string              `db:"name"`
 	OldName      *string             `db:"old_name"`
 	Organisation *string             `db:"organisation"`
 	OrderForm    *string             `db:"order_form"`
@@ -28,8 +28,8 @@ func (dbTenant *DBStruct) toJSON() *JSONStruct {
 		Organisation: dbTenant.Organisation,
 		OrderForm:    dbTenant.OrderForm,
 		OrderLink:    dbTenant.OrderLink,
-		Domain:       dbTenant.Domain,
-		Plan:         dbTenant.Plan,
+		Domain:       &dbTenant.Domain.Name,
+		Plan:         &dbTenant.Plan.Name,
 		Type:         dbTenant.Type,
 	}
 
@@ -42,14 +42,14 @@ func (dbTenant *DBStruct) toJSON() *JSONStruct {
 }
 
 type JSONStruct struct {
-	Name         *string             `json:"name"`
-	Organisation *string             `json:"organisation,omitempty"`
-	OrderForm    *string             `json:"orderForm,omitempty"`
-	OrderLink    *string             `json:"orderLink,omitempty"`
-	Type         *string             `json:"type,omitempty"`
-	Description  *string             `json:"description,omitempty"`
-	Domain       *dbdomains.DBStruct `json:"domain,omitempty"`
-	Plan         *dbplans.DBStruct   `json:"plan,omitempty"`
+	Name         *string `json:"name"`
+	Organisation *string `json:"organisation,omitempty"`
+	OrderForm    *string `json:"orderForm,omitempty"`
+	OrderLink    *string `json:"orderLink,omitempty"`
+	Type         *string `json:"type,omitempty"`
+	Description  *string `json:"description,omitempty"`
+	Domain       *string `json:"domainName,omitempty"`
+	Plan         *string `json:"planName,omitempty"`
 }
 
 func Query(p params.QueryParams) ([]*JSONStruct, error) {
@@ -63,9 +63,6 @@ func Query(p params.QueryParams) ([]*JSONStruct, error) {
 	if p.Search != nil {
 		sqlWhere = dbase.AppendWhere(sqlWhere) + "(t.name LIKE :search OR t.organisation LIKE :search) "
 	}
-	if p.TenantName != nil {
-		sqlWhere = dbase.AppendWhere(sqlWhere) + "(t.name = :tenant_name) "
-	}
 	if p.DomainName != nil && p.TenantName != nil {
 		sqlWhere = dbase.AppendWhere(sqlWhere) + "(d.name = :domain_name AND t.name = :tenant_name) "
 	}
@@ -77,7 +74,7 @@ func Query(p params.QueryParams) ([]*JSONStruct, error) {
 	}
 	sqlQuery := `
 		SELECT
-				t.name as tenant_name, t.organisation as organisation, t.order_form as order_form, t.order_link as order_link, t.description as description, t.type as type, d.name as "domain.name", p.name as "plan.name"
+				t.name as name, t.organisation as organisation, t.order_form as order_form, t.order_link as order_link, t.description as description, t.type as type, d.name as "domain.name", p.name as "plan.name"
 		FROM tenants t
 		JOIN domains d ON d.id = t.domain_id 
 		JOIN plans p ON d.id = p.domain_id ` + sqlWhere + `
@@ -125,7 +122,7 @@ func Insert(tenant *DBStruct) error {
 	sqlQuery := `INSERT INTO tenants
 							(name, organisation, order_form, order_link, description, type, domain_id, plan_id)
 						SELECT
-							:tenant_name, :organisation, :order_form, :order_link, :description, :type, d.id, p.id
+							:name, :organisation, :order_form, :order_link, :description, CAST (:type AS tenant_type), d.id, p.id
 						FROM domains d
 						JOIN plans p on d.id = p.domain_id
 						WHERE d.name = :domain.name AND p.name = :plan.name
@@ -137,14 +134,13 @@ func Insert(tenant *DBStruct) error {
 	return nil
 }
 
-func Update(tenant *DBStruct, p params.QueryParams) error {
-	tenant.OldName = p.TenantName
+func Update(tenant *DBStruct) error {
 	err := dbase.ExecWithChekOne(tenant,
 		`UPDATE tenants
 			SET 
 			    (name, organisation, order_form, order_link, description, type, domain_id, plan_id) = 
 			    (SELECT
-			    	:tenant_name, :organisation, :order_form, :order_link, :description, CAST (:type AS tenant_type), d.id, p.id
+			    	:name, :organisation, :order_form, :order_link, :description, CAST (:type AS tenant_type), d.id, p.id
 				FROM domains d
 				JOIN plans p on d.id = p.domain_id
 				WHERE d.name = :domain.name AND p.name = :plan.name)

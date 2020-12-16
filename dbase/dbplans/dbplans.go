@@ -115,7 +115,7 @@ func Insert(plan *DBStruct) error {
 		`INSERT INTO plans
 				(name, from_date, description, due_date, type, domain_id)
 			SELECT
-			    :name, :from_date, :description, :due_date, :type, domains.id
+			    :name, :from_date, :description, :due_date, CAST (:type AS plan_type), domains.id
 			FROM domains
 			WHERE domains.name = :domain_name
 			RETURNING id`)
@@ -125,8 +125,7 @@ func Insert(plan *DBStruct) error {
 	return nil
 }
 
-func Update(plan *DBStruct, p params.QueryParams) error {
-	plan.OldName = p.PlanName
+func Update(plan *DBStruct) error {
 	err := dbase.ExecWithChekOne(plan,
 		`UPDATE plans
 			SET 
@@ -134,7 +133,7 @@ func Update(plan *DBStruct, p params.QueryParams) error {
 			    from_date = :from_date,
 			    description = :description,
 			    due_date =  :due_date,
-			    type = :type
+			    type = CAST (:type AS plan_type)
 			WHERE id IN 
 			   (SELECT
 		          p.id

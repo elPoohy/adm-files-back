@@ -116,7 +116,7 @@ func Insert(domain *DBStruct) error {
 			INSERT INTO domains
 				(name, organisation, admin_url, primary_url, data_path, password, user_name, type, description)
 			VALUES
-			    (:name, :organisation, :admin_url, :primary_url, :data_path, :password, :user_name, :type, :description)
+			    (:name, :organisation, :admin_url, :primary_url, :data_path, :password, :user_name, CAST (:type AS domain_type), :description)
 			RETURNING id`)
 	if err != nil {
 		return err
@@ -124,8 +124,7 @@ func Insert(domain *DBStruct) error {
 	return nil
 }
 
-func Update(domain *DBStruct, p params.QueryParams) error {
-	domain.OldName = p.DomainName
+func Update(domain *DBStruct) error {
 	err := dbase.ExecWithChekOne(domain, `
 			UPDATE domains
 			SET 
@@ -136,11 +135,11 @@ func Update(domain *DBStruct, p params.QueryParams) error {
 			    data_path = :data_path,
 			    password = :password,
 			    user_name = :user_name,
-			    type = :type,
+			    type = CAST (:type AS domain_type),
 			    description = :description
 			WHERE
 				name = :old_name
-			    `,
+			RETURNING id`,
 	)
 	if err != nil {
 		return err

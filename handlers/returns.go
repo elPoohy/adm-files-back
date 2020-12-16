@@ -21,12 +21,17 @@ func ReturnError(w http.ResponseWriter, err error) {
 		StatusDBNotFound(err, w)
 		return
 	case errors.As(err, &pgError):
-		if pgError.Code == "23505" {
+		switch pgError.Code {
+		case "42P01":
+			StatusDBError(err, w)
+			return
+		case "23505":
 			StatusDBAlreadyExist(err, w)
 			return
 		}
+	default:
+		StatusDBError(err, w)
 	}
-	StatusDBError(err, w)
 }
 
 func ResponseJSON(w http.ResponseWriter, resp interface{}) {

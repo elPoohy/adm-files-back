@@ -1,7 +1,7 @@
-package tenants
+package tariffs
 
 import (
-	"files-back/dbase/dbtenants"
+	"files-back/dbase/dbtariffs"
 	"files-back/handlers"
 	"files-back/handlers/incoming"
 	"files-back/handlers/params"
@@ -9,25 +9,25 @@ import (
 )
 
 func Get(w http.ResponseWriter, r *http.Request) {
-	tenants, err := dbtenants.Query(params.GetQueryParams(r))
-	if err != nil {
+	plans, err := dbtariffs.Query(params.GetQueryParams(r))
+	switch {
+	case err != nil:
 		handlers.StatusBadData(err, w)
 		return
-	}
-	if len(tenants) == 1 {
-		handlers.ResponseJSON(w, tenants[0])
-	} else {
-		handlers.ResponseJSON(w, tenants)
+	case len(plans) == 1:
+		handlers.ResponseJSON(w, plans[0])
+	default:
+		handlers.ResponseJSON(w, plans)
 	}
 }
 
 func Create(w http.ResponseWriter, r *http.Request) {
-	var n incoming.Tenant
+	var n incoming.Tariff
 	if err := incoming.Extract(r, &n); err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
-	if err := dbtenants.Insert(n.ToDB(r)); err != nil {
+	if err := dbtariffs.Insert(n.ToDB(r)); err != nil {
 		handlers.ReturnError(w, err)
 		return
 	}
@@ -35,12 +35,12 @@ func Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
-	var n incoming.Tenant
+	var n incoming.Tariff
 	if err := incoming.Extract(r, &n); err != nil {
 		handlers.StatusBadData(err, w)
-		return
 	}
-	if err := dbtenants.Update(n.ToDB(r)); err != nil {
+
+	if err := dbtariffs.Update(n.ToDB(r)); err != nil {
 		handlers.StatusBadData(err, w)
 		return
 	}
@@ -48,9 +48,8 @@ func Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	if err := dbtenants.Delete(params.GetQueryParams(r)); err != nil {
-		handlers.StatusBadData(err, w)
-		return
+	if err := dbtariffs.Delete(params.GetQueryParams(r)); err != nil {
+		handlers.ReturnError(w, err)
 	}
 	handlers.StatusDeleted(w)
 }

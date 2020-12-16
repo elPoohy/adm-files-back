@@ -5,7 +5,9 @@ import (
 	"files-back/auth/directory"
 	"files-back/dbase"
 	"files-back/handlers/domains"
+	"files-back/handlers/groups"
 	"files-back/handlers/plans"
+	"files-back/handlers/tariffs"
 	"files-back/handlers/tenants"
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/stdlib"
@@ -44,7 +46,8 @@ func main() {
 	domainsHandlers(router)
 	plansHandlers(router)
 	tenantsHandlers(router)
-
+	groupsHandlers(router)
+	tariffsHandlers(router)
 	log.Panic(http.ListenAndServe(":"+port, router))
 }
 
@@ -65,13 +68,33 @@ func plansHandlers(router *mux.Router) {
 	router.Handle("/domains/{domainName}/plans/{planName}", auth.Middleware(http.HandlerFunc(plans.Delete))).Methods(http.MethodDelete)
 }
 
+func tariffsHandlers(router *mux.Router) {
+	router.Handle("/tariffs", auth.Middleware(http.HandlerFunc(tariffs.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/plans/{planName}/tariffs", auth.Middleware(http.HandlerFunc(tariffs.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/plans/{planName}/tariffs/{tariffName}", auth.Middleware(http.HandlerFunc(tariffs.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/plans/{planName}/tariffs", auth.Middleware(http.HandlerFunc(tariffs.Create))).Methods(http.MethodPost)
+	router.Handle("/domains/{domainName}/plans/{planName}/tariffs/{tariffName}", auth.Middleware(http.HandlerFunc(tariffs.Update))).Methods(http.MethodPut)
+	router.Handle("/domains/{domainName}/plans/{planName}/tariffs/{tariffName}", auth.Middleware(http.HandlerFunc(tariffs.Delete))).Methods(http.MethodDelete)
+}
+
 func tenantsHandlers(router *mux.Router) {
 	router.Handle("/tenants", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
-	router.Handle("/tenants", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
-	router.Handle("/tenants", auth.Middleware(http.HandlerFunc(tenants.Create))).Methods(http.MethodPost)
-	router.Handle("/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
-	router.Handle("/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Update))).Methods(http.MethodPut)
-	router.Handle("/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Delete))).Methods(http.MethodDelete)
+	router.Handle("/domains/{domainName}/tenants", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants", auth.Middleware(http.HandlerFunc(tenants.Create))).Methods(http.MethodPost)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Update))).Methods(http.MethodPut)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Delete))).Methods(http.MethodDelete)
+}
+
+func groupsHandlers(router *mux.Router) {
+	router.Handle("/groups", auth.Middleware(http.HandlerFunc(groups.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/groups", auth.Middleware(http.HandlerFunc(groups.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/groups", auth.Middleware(http.HandlerFunc(groups.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/groups", auth.Middleware(http.HandlerFunc(groups.Create))).Methods(http.MethodPost)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/groups/{groupName}", auth.Middleware(http.HandlerFunc(groups.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/groups/{groupName}", auth.Middleware(http.HandlerFunc(groups.Update))).Methods(http.MethodPut)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/groups/{groupName}", auth.Middleware(http.HandlerFunc(groups.Delete))).Methods(http.MethodDelete)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/groups/{groupName}", auth.Middleware(http.HandlerFunc(groups.Add))).Methods(http.MethodPost)
 }
 
 func DBConnect() {

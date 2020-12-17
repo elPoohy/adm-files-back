@@ -7,6 +7,7 @@ import (
 	"files-back/dbase/dbplans"
 	"files-back/dbase/dbtariffs"
 	"files-back/dbase/dbtenants"
+	"files-back/dbase/dbusers"
 	"files-back/handlers/params"
 	"github.com/go-playground/validator/v10"
 	"net/http"
@@ -153,6 +154,32 @@ func (incoming *Tenant) ToDB(r *http.Request) *dbtenants.DBStruct {
 		},
 	}
 	return &resp
+}
+
+type Users struct {
+	Email       string `json:"email" validate:"required,email,lowercase"`
+	DisplayName string `json:"name" validate:"required"`
+	Type        string `json:"type" validate:"required,oneof=full_Admin domain_admin tenant_admin regular"`
+	Tariff      string `json:"tariff" validate:"required"`
+}
+
+func (incoming *Users) ToDB(r *http.Request) *dbusers.DBStruct {
+	p := params.GetQueryParams(r)
+	return &dbusers.DBStruct{
+		Email:       incoming.Email,
+		DisplayName: &incoming.DisplayName,
+		Type:        &incoming.Type,
+		OldEmail:    p.Email,
+		Tariff: &dbtariffs.DBStruct{
+			Name: incoming.Tariff,
+		},
+		Tenant: &dbtenants.DBStruct{
+			Name: *p.TenantName,
+		},
+		Domain: &dbdomains.DBStruct{
+			Name: *p.DomainName,
+		},
+	}
 }
 
 type Groups struct {

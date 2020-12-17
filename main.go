@@ -9,6 +9,7 @@ import (
 	"files-back/handlers/plans"
 	"files-back/handlers/tariffs"
 	"files-back/handlers/tenants"
+	"files-back/handlers/users"
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/joho/godotenv"
@@ -48,6 +49,7 @@ func main() {
 	tenantsHandlers(router)
 	groupsHandlers(router)
 	tariffsHandlers(router)
+	usersHandlers(router)
 	log.Panic(http.ListenAndServe(":"+port, router))
 }
 
@@ -84,6 +86,17 @@ func tenantsHandlers(router *mux.Router) {
 	router.Handle("/domains/{domainName}/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Get))).Methods(http.MethodGet)
 	router.Handle("/domains/{domainName}/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Update))).Methods(http.MethodPut)
 	router.Handle("/domains/{domainName}/tenants/{tenantName}", auth.Middleware(http.HandlerFunc(tenants.Delete))).Methods(http.MethodDelete)
+}
+
+func usersHandlers(router *mux.Router) {
+	router.Handle("/users", auth.Middleware(http.HandlerFunc(users.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/users", auth.Middleware(http.HandlerFunc(users.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/users", auth.Middleware(http.HandlerFunc(users.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/users", auth.Middleware(http.HandlerFunc(users.Create))).Methods(http.MethodPost)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/users/{email}", auth.Middleware(http.HandlerFunc(users.Get))).Methods(http.MethodGet)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/users/{email}", auth.Middleware(http.HandlerFunc(users.Update))).Methods(http.MethodPut)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/users/{email}", auth.Middleware(http.HandlerFunc(users.Delete))).Methods(http.MethodDelete)
+	router.Handle("/domains/{domainName}/tenants/{tenantName}/users/{email}", auth.Middleware(http.HandlerFunc(users.Add))).Methods(http.MethodPost)
 }
 
 func groupsHandlers(router *mux.Router) {

@@ -25,6 +25,7 @@ type QueryParams struct {
 	DeleteType   *string `db:"delete"`
 	ShowDeleted  bool
 	ShowDisabled bool
+	Email        *string `db:"email"`
 	DomainName   *string `db:"domain_name"`
 	TenantName   *string `db:"tenant_name"`
 	PlanName     *string `db:"plan_name"`
@@ -37,6 +38,7 @@ func GetQueryParams(r *http.Request) QueryParams {
 		Limit:        getLimit(r),
 		Offset:       getOffset(r),
 		Search:       getSearchLine(r),
+		Email:        getEmail(r),
 		DomainName:   getDomain(r),
 		TenantName:   getTenant(r),
 		GroupName:    getGroup(r),
@@ -104,6 +106,15 @@ func getTenant(r *http.Request) *string {
 
 func getGroup(r *http.Request) *string {
 	switch resp := mux.Vars(r)["groupName"]; resp {
+	case noData:
+		return nil
+	default:
+		return &resp
+	}
+}
+
+func getEmail(r *http.Request) *string {
+	switch resp := mux.Vars(r)["email"]; resp {
 	case noData:
 		return nil
 	default:
